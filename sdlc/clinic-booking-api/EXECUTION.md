@@ -2,7 +2,7 @@
 
 The runbook for taking this change from its current state to production and into maintenance. Any human or agent can follow it. Generated from the artifacts below; update it whenever one of them changes. Progress against these steps, plus all decisions and conventions, is tracked in `WORKLOG.md` in this folder. Log each completed step there.
 
-Change slug: `clinic-booking-api` · Last updated: 2026-10-31 · Current stage: Build (all lifecycle artifacts accepted; no code written yet)
+Change slug: `clinic-booking-api` · Last updated: 2026-10-31 · Current stage: Build (artifacts accepted and amended for D35/D36 and the Python switch D38/D39; scaffold only, no application logic yet)
 
 ## Artifact chain
 | Stage | Artifact | Status | Owner | Approved by / date |
@@ -25,7 +25,7 @@ Source document: Koya Cohort 4 assessment Task 1 brief + OpenAPI 1.0 schema (pas
 
 Candidate skills to write (conventions found during the interview):
 - Additive-only database migrations (so rollback of the app stays safe, D28) · owner: user · also needs a hard guardrail: yes (CI check on new migration files)
-- No names or emails in logs (N4) · owner: user · also needs a hard guardrail: yes (already partly covered by `LogPrivacyTest`; add a log-scan step in CI)
+- No names or emails in logs (N4) · owner: user · also needs a hard guardrail: yes (already partly covered by `tests/test_log_privacy.py`; add a log-scan step in CI)
 
 ## Setup before automation starts
 - [ ] GitHub repository created (public, or invite `quadri40`); branch protection on main: pull request plus passing CI required, code owner is the user (D26); confirm it works on a solo repo
@@ -40,35 +40,37 @@ Candidate skills to write (conventions found during the interview):
 Each step: actor · input → action → output · gate before the next step. "Plan step N" means the numbered steps in plan.md.
 
 1. **Set up accounts and secrets** · human (user) · release.md setup list → create repo, Neon branches, Render service, GitHub secret · Gate: user confirms the setup checklist above (secrets never pasted into chat or files).
-2. **Scaffold project** · agent · plan.md step 1, AGENTS.md → pom, Maven wrapper (pin latest Boot 4.0.x), app class, config, .gitignore · Gate: `./mvnw -q -DskipTests package` passes.
-3. **Schema and test guard** · agent · plan step 2 → Flyway V1, `PostgresTestBase` with the prod-database guard · Gate: guard test passes; migration applies to the test branch.
-4. **Error model, key filter, health** · agent · plan step 3 → R5, R14, N1, N8, N9 · Gate: `AuthApiTest`, `ErrorFormatApiTest`, `HealthApiTest` green.
-5. **Slots and reset** · agent · plan step 4 → R1, R2 · Gate: `SlotsApiTest`, `ResetApiTest` green.
-6. **Create and get booking** · agent · plan step 5 → R3, R4, R6 · Gate: `BookingApiTest`, `ValidationApiTest` green.
-7. **Double-booking guard** · agent · plan step 6 → R7, N2 · Gate: `ConcurrencyApiTest` green (one 201, 49 409); review the SQL.
-8. **Cancel, idempotency, paging** · agent · plan steps 7-9 → R8, R9, R10 (in this order, they share `BookingService`) · Gate: `CancelApiTest`, `IdempotencyApiTest`, `PagingApiTest` green.
-9. **Rate limit, audit and privacy** · agent · plan steps 10-11 → R11, N4, N5 · Gate: `RateLimitApiTest`, `LogPrivacyTest` green.
-10. **Web page** · agent · plan step 12, design reference → R12, N7 · Gate: `WebPageBrowserTest` green plus the manual checklist (user).
+2. **Scaffold project** · agent · plan.md step 1, AGENTS.md → requirements files, pyproject, `app/` package, .gitignore (D38) · Gate: `pip install -r requirements-dev.txt`, `python -c "import app.main"` and `ruff check .` pass, and `uvicorn app.main:app` starts.
+3. **Schema and test guard** · agent · plan step 2 → migration V1, migration runner, `tests/conftest.py` with the prod-database guard · Gate: guard test passes; migration applies to the test branch.
+4. **Error model, key filter, health** · agent · plan step 3 → R5, R14, N1, N8, N9 · Gate: `tests/test_auth_api.py`, `tests/test_error_format_api.py`, `tests/test_health_api.py` green.
+5. **Slots and reset** · agent · plan step 4 → R1, R2 · Gate: `tests/test_slots_api.py`, `tests/test_reset_api.py` green.
+6. **Create and get booking** · agent · plan step 5 → R3, R4, R6 · Gate: `tests/test_booking_api.py`, `tests/test_validation_api.py` green.
+7. **Double-booking guard** · agent · plan step 6 → R7, N2 · Gate: `tests/test_concurrency_api.py` green (one 201, 49 409); review the SQL.
+8. **Cancel, idempotency, paging** · agent · plan steps 7-9 → R8, R9, R10 (in this order, they share `services/bookings.py`) · Gate: `tests/test_cancel_api.py`, `tests/test_idempotency_api.py`, `tests/test_paging_api.py` green.
+9. **Rate limit, audit and privacy** · agent · plan steps 10-11 → R11, N4, N5 · Gate: `tests/test_rate_limit_api.py`, `tests/test_log_privacy.py` green.
+10. **Web page (responsive, phone and desktop)** · agent · plan step 12, design reference → R12, N7 · Gate: `tests/test_web_page_browser.py` green plus the manual checklist (user).
 11. **Levels 1-5 checkpoint** · human (user) · all tests, local run → decide to start extras (D6) · Gate: user confirms every level is solid before the payment extra starts.
-12. **Simulated payment extra** · agent · plan step 14 → R13 · Gate: `PaymentApiTest` green and core Booking schema unchanged.
-13. **Package and deploy** · agent prepares, human deploys · plan step 15, release.md → Dockerfile, render.yaml, README, pre-release checklist · Gate: CI green on main, user triggers the Render deploy (production gate, D26/D27).
-14. **Verify live service** · human + agent · test-plan.md done-targets → run API checks against the https URL, restart check, cold-start timing, rollback rehearsal, uptime monitor on · Gate: all pass; user signs off.
-15. **Submit** · human (user) · Koya form → API base URL, API key, page URL, repo link, Loom (5 min or less, key not shown), short note (how far, two biggest decisions, next steps) · Gate: user submits; the service then stays frozen (release.md Freeze).
-16. **Maintain** · human + agent · monitoring.md → watch alerts and Render metrics daily; agent diagnoses and prepares fix PRs only · Gate: user triages every finding.
+12. **Simulated payment extra** · agent · plan step 14 → R13 · Gate: `tests/test_payment_api.py` green and core Booking schema unchanged.
+13. **Desktop dashboard extra** · agent · plan step 15, design reference (D35, D36) → R15, R16, R17, N10 · Gate: `tests/test_dashboard_api.py` and `tests/test_dashboard_page_browser.py` green; no emails or full names in any dashboard response; page checked at 390 px and 1280 px.
+14. **Package and deploy** · agent prepares, human deploys · plan step 16, release.md → render.yaml, README, pre-release checklist · Gate: CI green on main, user triggers the Render deploy (production gate, D26/D27).
+15. **Verify live service** · human + agent · test-plan.md done-targets → run API checks against the https URL, restart check, cold-start timing, rollback rehearsal, uptime monitor on · Gate: all pass; user signs off.
+16. **Submit** · human (user) · Koya form → API base URL, API key, page URL, repo link, Loom (5 min or less, key not shown), short note (how far, two biggest decisions, next steps) · Gate: user submits; the service then stays frozen (release.md Freeze).
+17. **Maintain** · human + agent · monitoring.md → watch alerts and Render metrics daily; agent diagnoses and prepares fix PRs only · Gate: user triages every finding.
 
 ## Commands
 ```
-build:    ./mvnw -q -DskipTests package
-test:     ./mvnw test                      # needs TEST_DATABASE_URL (Neon test branch)
-lint:     ./mvnw spotless:check            # fix: ./mvnw spotless:apply
-run:      DATABASE_URL=... API_KEY=... ./mvnw spring-boot:run
+setup:    python -m venv .venv ; activate it ; pip install -r requirements-dev.txt
+check:    python -c "import app.main"
+test:     pytest                            # needs TEST_DATABASE_URL (Neon test branch)
+lint:     ruff check . && ruff format --check .   # fix: ruff format .
+run:      uvicorn app.main:app --reload     # needs DATABASE_URL and API_KEY set
 deploy:   Render dashboard, manual deploy   # production requires user (release manager)
 rollback: Render dashboard, redeploy previous successful deploy   # user only
 ```
 
 ## Parallel work
-- Run at the same time (separate isolated workspaces): web page (step 10, needs only the contract from steps 5-6), Dockerfile + render.yaml + README (step 13 files), rate limiter and its test (step 9).
-- Run in order: steps 2-9 (they build on each other and share `BookingService`, `BookingRepository`, `BookingController`), then 11 → 12 → 13 → 14 → 15.
+- Run at the same time (separate isolated workspaces): web page (step 10, needs only the contract from steps 5-6), dashboard.html (step 13 front end), render.yaml + README (step 14 files), rate limiter and its test (step 9).
+- Run in order: steps 2-9 (they build on each other and share `BookingService`, `BookingRepository`, `BookingController`), then 11 → 12 → 13 → 14 → 15 → 16.
 
 ## Human decision points
 | Decision | Approver | Evidence they review |
@@ -104,12 +106,12 @@ rollback: Render dashboard, redeploy previous successful deploy   # user only
 ## Unresolved questions
 | Question | From artifact | Owner | Needed by step |
 |----------|---------------|-------|----------------|
-| Paging, idempotency, rate-limit and /reset choices are decided but unverified against the full Koya spec (C1, D12-D15) | spec.md | user | before step 15 (submit) |
+| Paging, idempotency, rate-limit and /reset choices are decided but unverified against the full Koya spec (C1, D12-D15) | spec.md | user | before step 16 (submit) |
 | Exact list of the 10 eval tasks | test-plan.md | user | after step 11 (stretch) |
-| Playwright version and CI browser-install step | test-plan.md | agent | step 4 (ci.yml) and step 10 |
-| Exact latest Spring Boot 4.0.x patch to pin (checked online when the pom is written) | plan.md | agent | step 2 |
-| Neon and Render free-plan limits for "keep it running" (sleep, retention, hours) | release.md | user | step 13 |
+| `pytest-playwright` version and CI browser-install step | test-plan.md | agent | step 4 (ci.yml) and step 10 |
+| Python version for Render and the exact dependency versions to pin (`pip freeze` after the first successful install) | plan.md | agent | step 2 |
+| Neon and Render free-plan limits for "keep it running" (sleep, retention, hours) | release.md | user | step 14 |
 | Whether GitHub branch protection can require passing CI on a solo repo without a second approver | release.md | user | step 1 |
-| Which free uptime monitor; confirm 5-minute interval and email alerts | monitoring.md | user | step 14 |
-| Real latency and memory baselines after the service is live | monitoring.md | user | step 16 |
-| Submission values (API base URL, API key, page URL, repo, Loom link): not recorded in any file | intent.md | user | step 15 |
+| Which free uptime monitor; confirm 5-minute interval and email alerts | monitoring.md | user | step 15 |
+| Real latency and memory baselines after the service is live | monitoring.md | user | step 17 |
+| Submission values (API base URL, API key, page URL, repo, Loom link): not recorded in any file | intent.md | user | step 16 |

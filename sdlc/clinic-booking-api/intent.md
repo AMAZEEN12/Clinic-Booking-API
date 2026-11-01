@@ -7,6 +7,8 @@ Requester: Koya Academy (reviews only the final submission)
 Source of truth: repository
 Supporting skills: none (assumed baseline policy)
 
+> Amended 2026-10-31 (D35, D36): booking page responsive on mobile and desktop; clinic dashboard added as a desktop extra. See WORKLOG.md.
+
 ## Problem
 A clinic has no way for patients to book appointment slots online. It needs an API that lets patients list available slots, book one and look it up, plus a simple web page that uses the API so a patient can see available slots, book one and see the confirmation. Both must be deployed at an https URL and keep their data between requests.
 
@@ -14,7 +16,7 @@ A clinic has no way for patients to book appointment slots online. It needs an A
 A patient opens the web page, sees which slots are free, books one with name and email, and sees a confirmation. The API behind it only accepts requests with the API key, rejects bad input, never double-books a slot (even under simultaneous requests), supports cancellation, never creates duplicates when a request is retried, lets a person page through their bookings, and limits spam bookings. The exact endpoints and responses follow the technical spec: POST /reset, GET /slots, POST /bookings, GET /bookings, GET /bookings/{id}, DELETE /bookings/{id}; errors look like {"error": "<message>"}.
 
 ## Affected users and systems
-- Users: patients booking slots; Koya Academy assessors running automated checks against the API; the candidate recording a Loom walkthrough.
+- Users: patients booking slots; clinic staff viewing the day's appointments on a desktop dashboard (extra); Koya Academy assessors running automated checks against the API; the candidate recording a Loom walkthrough.
 - Systems: a new API service, a database, a static or server-rendered web page, a public GitHub repo, and a hosting platform (Render, Vercel, Supabase, Neon or similar).
 
 ## Constraints
@@ -28,13 +30,13 @@ A patient opens the web page, sees which slots are free, books one with name and
 
 ## Out of scope
 - Changing or breaking the core API contract for any extra feature: POST /bookings must keep working with only slot_id, name, email and the X-API-Key.
-- Extras are optional and additive and are built only after Levels 1-5 are solid (decision D6). Candidates: login and user accounts on the web page, simulated payments (no real money), in-app notifications, and email notifications (stretch).
+- Extras are optional and additive and are built only after Levels 1-5 are solid (decision D6). Candidates: login and user accounts on the web page, simulated payments (no real money), in-app notifications, and email notifications (stretch). The clinic dashboard from the reference design is now an in-scope desktop extra (D35, D36).
 - Real payment processing and admin tooling beyond /reset.
 
 ## Success criteria
 - All 5 levels pass the Koya checks: list/book/look up; API key and validation; no double-booking under concurrency plus cancellation; idempotent retries plus paging; spam protection.
 - The web page works end to end (see slots, book, see confirmation) on its deployed URL.
-- At least one extra (for example a simulated payment) works without affecting the core contract.
+- At least one extra (for example a simulated payment) works without affecting the core contract; the booking page works on phone and desktop; the desktop clinic dashboard shows the day's appointments with masked patient names.
 - Submission complete within one week, with a Loom of 5 minutes or less.
 
 ## Open questions

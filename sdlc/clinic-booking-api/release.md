@@ -13,9 +13,9 @@ Each gate is a deterministic pre-action check (allow / ask / block). A block exp
 |------|--------------------------|----------|----------|----------------|
 | Production deploy | any deploy to the live Render service | block without release authorization | user (release manager) | Render auto-deploy off (`autoDeploy: false` in render.yaml, D27); the agent holds no Render credentials or deploy hook |
 | Merge to main | pull request merge | block until CI is green and the code owner merges | user | GitHub branch protection: pull request plus passing CI required; the agent never approves or merges |
-| Protected paths (rule only, D29) | edits to applied `db/migration/V*.sql`, `Dockerfile`, `render.yaml`, secrets | ask (written rule, reviewed in REVIEW.md Compliance and Security passes) | user | AGENTS.md "Protected paths"; not a hard block |
+| Protected paths (rule only, D29) | edits to applied `migrations/V*.sql`, `render.yaml`, `requirements*.txt`, secrets | ask (written rule, reviewed in REVIEW.md Compliance and Security passes) | user | AGENTS.md "Protected paths"; not a hard block |
 
-Residual risk (D29): only the production deploy is a hard gate, so an agent could change migrations, the Dockerfile or `render.yaml` in a pull request without being blocked. Review and CI are the safety net, and nothing reaches production without the manual deploy.
+Residual risk (D29): only the production deploy is a hard gate, so an agent could change migrations, `render.yaml` or the dependency files in a pull request without being blocked. Review and CI are the safety net, and nothing reaches production without the manual deploy.
 
 ## Environments and autonomy
 | Environment | What the agent may do | Human gate |
@@ -27,7 +27,7 @@ Residual risk (D29): only the production deploy is a hard gate, so an agent coul
 ## Pipeline
 - CI/CD platform: GitHub Actions (CI on every push, D22); Render for hosting, deploy triggered manually.
 - Read-only agent steps: triage a failed build, summarize a flaky test, draft the changelog and pre-release checklist.
-- Write steps (always arrive as a PR through branch protection): fix lint (`spotless:apply`), update README and docs, address review comments.
+- Write steps (always arrive as a PR through branch protection): fix lint (`ruff format .`), update README and docs, address review comments.
 - Execution: sandboxed runner; only `TEST_DATABASE_URL` as an encrypted secret; no production credentials (`DATABASE_URL`, `API_KEY`, Render deploy hook) are ever given to the agent or CI.
 - Tools exposed to the agent for production: read-only status check (`GET /health`). No deploy or rollback tools.
 - Migrations are forward-only and additive (D28), so the previous app version keeps working after a rollback.

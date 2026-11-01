@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# IDE and OS
+.idea/
+.vscode/
+.DS_Store
+
+# Secrets and local config: never commit (N1)
+.env
+.env.*
+*.pem

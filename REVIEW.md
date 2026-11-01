@@ -18,8 +18,8 @@ Run these passes and tag each finding with its pass:
 Report at most 5 nits per review; summarize the rest as a count.
 
 ## Do not report
-- Generated files under `target/`.
-- Anything CI already enforces (Spotless formatting, compile errors, test failures).
+- Generated files and caches (`__pycache__/`, `.pytest_cache/`, `.ruff_cache/`).
+- Anything CI already enforces (Ruff lint and formatting, import errors, test failures).
 
 ## Weakened tests
 Reject diffs that delete, skip or weaken tests. During a fix task, test files change only in the test-first commit (test-plan.md).
