@@ -41,7 +41,7 @@ def get_booking(booking_id: str) -> Booking:
 
 
 def cancel_booking(booking_id: str) -> Booking:
-    """Cancel a booking and free its slot (R8). Cancelling twice is harmless and returns the same."""
+    """Cancel a booking and free its slot (R8). Cancelling twice changes nothing more."""
     with db.get_pool().connection() as conn:
         row = booking_repository.cancel(conn, booking_id)
         changed = row is not None
