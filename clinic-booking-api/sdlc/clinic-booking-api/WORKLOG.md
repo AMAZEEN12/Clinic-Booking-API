@@ -6,11 +6,12 @@ Source document: Koya Cohort 4 assessment, Task 1 brief + Clinic booking API Ope
 > Any agent opening this project: read this file first, then the "Conventions and guidelines" and "Decisions" sections, then the artifacts in this folder. Continue from "Resume here". Don't re-ask anything already answered below.
 
 ## Resume here
-- **Stage:** Build (implementation: EXECUTION steps 2-3 of 16 in progress)
-- **Step:** EXECUTION step 5 (plan step 4: slots and /reset) written, user results pending; web page direction changed to the React template (D41); CORS (D42) written
-- **In progress:** documents amended for D41/D42 (spec, plan, test-plan, release, EXECUTION, AGENTS). CORS code and tests written: app/config.py, app/main.py, tests/__init__.py, tests/test_cors_api.py. Web template not yet copied into web/.
-- **Next action:** User runs `python -m pytest`, `ruff check .`, `ruff format .` (plan step 4 and CORS tests) and reports. Then continue the API: plan step 5 (create/get booking, R3, R4, R6) so the web page has real endpoints; then web: copy template into web/, prune, rewire (read template files: models, services, routes, components first).
-- **Waiting on:** user's pytest/ruff results (plan step 4 + CORS)
+- **Stage:** Build (implementation: EXECUTION steps 5-6 done in code; step 7 (cancel) now tested)
+- **Step:** EXECUTION step 8 (plan steps 7-9: cancel, idempotency, paging). Cancel (plan step 7) is written and proven by `tests/test_cancel_api.py`. Idempotency (plan step 8, the riskiest) is next.
+- **In progress:** nothing half-done. Verified 2026-11-04 on a local Postgres 16: `pytest` 100 passed, `ruff check .` and `ruff format --check .` clean, `python -c "import app.main"` clean.
+- **Next action:** user runs `python -m pytest`, `ruff check .`, `ruff format --check .` against the Neon test branch and reports. Then plan step 8: `Idempotency-Key` header plus natural dedupe on slot+email (R9, D12), test-first in `tests/test_idempotency_api.py`; then plan step 9 paging (R10).
+- **Waiting on:** user's pytest/ruff results on the Neon test branch.
+- **Not yet built:** `GET /bookings?email=` (R10), `app/ratelimit.py` (R11), `tests/test_log_privacy.py` (N4, N5), `tests/test_health_api.py` (N9), payment and dashboard extras, `web/`, `render.yaml`, README, CI workflow.
 
 ## How to continue without the sdlc skill
 1. Stages run in order: Plan (intent.md), Design (spec.md), Build (plan.md + repo AGENTS.md), Test (test-plan.md), Deploy (release.md + repo REVIEW.md), Maintain (monitoring.md), then EXECUTION.md.
