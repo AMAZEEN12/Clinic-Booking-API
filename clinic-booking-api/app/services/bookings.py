@@ -7,11 +7,11 @@ from uuid import uuid4
 import psycopg.errors
 
 from app import audit, db
-from app.errors import ConflictError, NotFoundError
+from app.errors import BadRequestError, ConflictError, NotFoundError
 from app.repositories import bookings as booking_repository
 from app.repositories import idempotency as idempotency_repository
 from app.repositories import slots as slot_repository
-from app.schemas import Booking, NewBooking
+from app.schemas import Booking, NewBooking, PageResponse
 
 _BOOKING_ID_CONSTRAINT = "bookings_pkey"
 
@@ -83,6 +83,16 @@ def get_booking(booking_id: str) -> Booking:
     if row is None:
         raise NotFoundError("booking not found")
     return Booking(**row)
+
+
+def list_bookings(email: str, page: int, limit: int) -> PageResponse:
+    """One page of a person's bookings, newest first (R10)."""
+    email = email.strip()
+    if not email:
+        raise BadRequestError("email is required")
+    with db.get_pool().connection() as conn:
+        rows, total = booking_repository.list_for_email(conn, email, limit, (page - 1) * limit)
+    return PageResponse(items=[Booking(**row) for row in rows], page=page, limit=limit, total=total)
 
 
 def cancel_booking(booking_id: str) -> Booking:
