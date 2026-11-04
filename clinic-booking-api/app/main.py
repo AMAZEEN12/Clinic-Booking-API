@@ -4,8 +4,9 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Security
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import APIKeyHeader
 
 from app import db
 from app.config import cors_origins_from_env, load_settings
@@ -17,6 +18,10 @@ from app.security import api_key_middleware
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 hide_query_strings()
+
+# Only adds the "Authorize" button to /docs so Swagger sends the X-API-Key header.
+# The real key check is still api_key_middleware.
+_swagger_key = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
 @asynccontextmanager
@@ -33,7 +38,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         db.close_pool()
 
 
-app = FastAPI(title="Clinic booking API", version="1.0", lifespan=lifespan)
+app = FastAPI(
+    title="Clinic booking API",
+    version="1.0",
+    lifespan=lifespan,
+    dependencies=[Security(_swagger_key)],
+)
 install_error_handlers(app)
 # The last one added runs first. So the order of a request is: CORS, key check, rate limit.
 app.middleware("http")(rate_limit_middleware)
