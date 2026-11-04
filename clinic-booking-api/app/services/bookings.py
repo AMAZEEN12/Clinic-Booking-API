@@ -38,3 +38,17 @@ def get_booking(booking_id: str) -> Booking:
     if row is None:
         raise NotFoundError("booking not found")
     return Booking(**row)
+
+
+def cancel_booking(booking_id: str) -> Booking:
+    """Cancel a booking and free its slot (R8). Cancelling twice is harmless and returns the same."""
+    with db.get_pool().connection() as conn:
+        row = booking_repository.cancel(conn, booking_id)
+        changed = row is not None
+        if row is None:
+            row = booking_repository.get(conn, booking_id)
+    if row is None:
+        raise NotFoundError("booking not found")
+    if changed:
+        audit.record("booking_cancelled", booking_id=booking_id, slot_id=row["slot_id"])
+    return Booking(**row)

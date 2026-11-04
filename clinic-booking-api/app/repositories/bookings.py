@@ -15,4 +15,18 @@ def insert(conn: Connection, booking_id: str, slot_id: str, name: str, email: st
 
 
 def get(conn: Connection, booking_id: str) -> dict | None:
-    return conn.execute(f"SELECT {_COLUMNS} FROM bookings WHERE id = %s", (booking_id,)).fetchone()
+    return conn.execute(
+        f"SELECT {_COLUMNS} FROM bookings WHERE id = %s", (booking_id,)
+    ).fetchone()
+
+
+def cancel(conn: Connection, booking_id: str) -> dict | None:
+    """Cancel a confirmed booking. Returns the row only if this call changed it.
+
+    Returns None when the booking does not exist or was already cancelled.
+    """
+    return conn.execute(
+        "UPDATE bookings SET status = 'cancelled' "
+        f"WHERE id = %s AND status = 'confirmed' RETURNING {_COLUMNS}",
+        (booking_id,),
+    ).fetchone()
