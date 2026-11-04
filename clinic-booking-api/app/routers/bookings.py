@@ -1,11 +1,12 @@
-"""POST /bookings, GET /bookings/{id} (Level 1) and DELETE /bookings/{id} (Level 3)."""
+"""POST /bookings, GET /bookings, GET /bookings/{id} and DELETE /bookings/{id}."""
 
 from typing import Annotated
 
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Header, Query
 
+from app.config import DEFAULT_PAGE_SIZE, MAX_PAGE_NUMBER, MAX_PAGE_SIZE
 from app.errors import BadRequestError
-from app.schemas import Booking, NewBooking
+from app.schemas import Booking, NewBooking, PageResponse
 from app.services import bookings as booking_service
 
 router = APIRouter()
@@ -27,6 +28,15 @@ def create_booking(
     idempotency_key: Annotated[str | None, Header()] = None,
 ):
     return booking_service.create_booking(new_booking, _clean_key(idempotency_key))
+
+
+@router.get("/bookings", response_model=PageResponse)
+def list_bookings(
+    email: Annotated[str, Query()],
+    page: Annotated[int, Query(ge=1, le=MAX_PAGE_NUMBER)] = 1,
+    limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
+):
+    return booking_service.list_bookings(email, page, limit)
 
 
 @router.get("/bookings/{booking_id}", response_model=Booking)
