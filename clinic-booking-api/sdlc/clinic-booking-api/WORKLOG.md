@@ -6,12 +6,13 @@ Source document: Koya Cohort 4 assessment, Task 1 brief + Clinic booking API Ope
 > Any agent opening this project: read this file first, then the "Conventions and guidelines" and "Decisions" sections, then the artifacts in this folder. Continue from "Resume here". Don't re-ask anything already answered below.
 
 ## Resume here
-- **Stage:** Build (implementation: EXECUTION step 8 done: cancel, idempotency and paging all tested)
-- **Step:** EXECUTION step 9 (plan steps 10-11): rate limit (R11), then audit lines and the log-privacy test (N4, N5). Paging (plan step 9, R10, D13) is proven by `tests/test_paging_api.py` (21 tests).
-- **In progress:** nothing half-done. Verified 2026-11-04 on a local Postgres 16: `pytest` 139 passed (5 runs in a row), `ruff check .` and `ruff format --check .` clean. A real uvicorn run confirmed the access log no longer shows the email (D45).
-- **Next action:** user runs `python -m pytest`, `ruff check .`, `ruff format --check .` against the Neon test branch and reports. Then plan step 10: `app/ratelimit.py` and `tests/test_rate_limit_api.py` (R11, D14), test-first.
-- **Waiting on:** user's pytest/ruff results on the Neon test branch (cancel, idempotency, paging, log filter).
-- **Not yet built:** `app/ratelimit.py` (R11), the audit-line half of `tests/test_log_privacy.py` (N5; the access-log half exists), `tests/test_health_api.py` (N9), payment and dashboard extras, `web/`, `render.yaml`, README. When writing `render.yaml`, start uvicorn with exactly one worker; do not add `--no-access-log` (the filter in `app/logsafe.py` already hides query strings).
+- **Stage:** Build (implementation: EXECUTION step 9 in progress: rate limit done, audit lines next)
+- **Step:** EXECUTION step 9 (plan steps 10-11). Rate limit (plan step 10, R11, D14) is proven by `tests/test_rate_limit_api.py` (20 tests). Audit lines and the rest of the log-privacy test (plan step 11, N4, N5) are next.
+- **In progress:** nothing half-done. Verified 2026-11-04 on a local Postgres 16: `pytest` 159 passed (10 runs in a row), `ruff check .` and `ruff format --check .` clean; a real uvicorn run returned 10 normal responses then 429 with `Retry-After: 6`. The user's GitHub Actions run was green for the work before the rate limiter.
+- **Next action:** user commits the files and reports the GitHub Actions result (tick or cross). Then plan step 11: audit lines (booking created and cancelled, no names or emails) and the audit half of `tests/test_log_privacy.py` (N5).
+- **Waiting on:** the GitHub Actions result for the rate limiter commit; the user's answer on whether to keep 10 a minute (D46 risk).
+- **Not yet built:** the audit-line half of `tests/test_log_privacy.py` (N5; the access-log half exists), `tests/test_health_api.py` (N9), payment and dashboard extras, `web/`, `render.yaml`, README. When writing `render.yaml`: exactly one uvicorn worker (the limiter is in memory), do not add `--no-access-log` (the filter in `app/logsafe.py` already hides query strings), and leave `RATE_LIMIT_PER_MINUTE` unset unless the limit is changed.
+
 
 ## How to continue without the sdlc skill
 1. Stages run in order: Plan (intent.md), Design (spec.md), Build (plan.md + repo AGENTS.md), Test (test-plan.md), Deploy (release.md + repo REVIEW.md), Maintain (monitoring.md), then EXECUTION.md.
