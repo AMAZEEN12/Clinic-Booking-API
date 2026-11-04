@@ -73,3 +73,12 @@ class Booking(BaseModel):
     @classmethod
     def _created_at_utc(cls, value: datetime) -> datetime:
         return _to_utc(value)
+
+
+class PageResponse(BaseModel):
+    """One page of a person's bookings, newest first (R10)."""
+
+    items: list[Booking]
+    page: int
+    limit: int
+    total: int
