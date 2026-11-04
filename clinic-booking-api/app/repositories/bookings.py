@@ -18,6 +18,14 @@ def get(conn: Connection, booking_id: str) -> dict | None:
     return conn.execute(f"SELECT {_COLUMNS} FROM bookings WHERE id = %s", (booking_id,)).fetchone()
 
 
+def get_confirmed_for_slot(conn: Connection, slot_id: str) -> dict | None:
+    """The confirmed booking holding a slot, if any (at most one can exist, R7)."""
+    return conn.execute(
+        f"SELECT {_COLUMNS} FROM bookings WHERE slot_id = %s AND status = 'confirmed'",
+        (slot_id,),
+    ).fetchone()
+
+
 def cancel(conn: Connection, booking_id: str) -> dict | None:
     """Cancel a confirmed booking. Returns the row only if this call changed it.
 
