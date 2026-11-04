@@ -11,7 +11,7 @@ Source document: Koya Cohort 4 assessment, Task 1 brief + Clinic booking API Ope
 - **In progress:** nothing half-done. Verified 2026-11-04 on a local Postgres 16: `pytest` 139 passed (5 runs in a row), `ruff check .` and `ruff format --check .` clean. A real uvicorn run confirmed the access log no longer shows the email (D45).
 - **Next action:** user runs `python -m pytest`, `ruff check .`, `ruff format --check .` against the Neon test branch and reports. Then plan step 10: `app/ratelimit.py` and `tests/test_rate_limit_api.py` (R11, D14), test-first.
 - **Waiting on:** user's pytest/ruff results on the Neon test branch (cancel, idempotency, paging, log filter).
-- **Not yet built:** `app/ratelimit.py` (R11), the audit-line half of `tests/test_log_privacy.py` (N5; the access-log half exists), `tests/test_health_api.py` (N9), payment and dashboard extras, `web/`, `render.yaml`, README, CI workflow. When writing `render.yaml`, start uvicorn with exactly one worker; do not add `--no-access-log` (the filter in `app/logsafe.py` already hides query strings).
+- **Not yet built:** `app/ratelimit.py` (R11), the audit-line half of `tests/test_log_privacy.py` (N5; the access-log half exists), `tests/test_health_api.py` (N9), payment and dashboard extras, `web/`, `render.yaml`, README. When writing `render.yaml`, start uvicorn with exactly one worker; do not add `--no-access-log` (the filter in `app/logsafe.py` already hides query strings).
 
 ## How to continue without the sdlc skill
 1. Stages run in order: Plan (intent.md), Design (spec.md), Build (plan.md + repo AGENTS.md), Test (test-plan.md), Deploy (release.md + repo REVIEW.md), Maintain (monitoring.md), then EXECUTION.md.
