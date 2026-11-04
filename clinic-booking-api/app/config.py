@@ -3,6 +3,11 @@
 import os
 from dataclasses import dataclass
 
+# Paging for GET /bookings (D13): the only place these numbers live.
+DEFAULT_PAGE_SIZE = 10
+MAX_PAGE_SIZE = 100
+MAX_PAGE_NUMBER = 1_000_000
+
 
 @dataclass(frozen=True)
 class Settings:
