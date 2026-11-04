@@ -11,6 +11,7 @@ from app import db
 from app.config import cors_origins_from_env, load_settings
 from app.errors import install_error_handlers
 from app.logsafe import hide_query_strings
+from app.ratelimit import TokenBucketLimiter, rate_limit_middleware
 from app.routers import bookings, health, reset, slots
 from app.security import api_key_middleware
 
@@ -23,6 +24,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Settings are read at startup (not at import) so `import app.main` works without them.
     settings = load_settings()
     app.state.settings = settings
+    app.state.rate_limiter = TokenBucketLimiter(settings.rate_limit_per_minute)
     db.run_migrations(settings.database_url)
     db.init_pool(settings.database_url)
     try:
@@ -33,6 +35,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="Clinic booking API", version="1.0", lifespan=lifespan)
 install_error_handlers(app)
+# The last one added runs first. So the order of a request is: CORS, key check, rate limit.
+app.middleware("http")(rate_limit_middleware)
 app.middleware("http")(api_key_middleware)
 # Added last so it is the outermost layer: browsers send a preflight request without the key,
 # and it must be answered before the key check runs (D42).
