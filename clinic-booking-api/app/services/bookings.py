@@ -10,7 +10,7 @@ from app.repositories import bookings as booking_repository
 from app.repositories import slots as slot_repository
 from app.schemas import Booking, NewBooking
 
-_ONE_CONFIRMED_PER_SLOT = "bookings_one_confirmed_per_slot"
+_BOOKING_ID_CONSTRAINT = "bookings_pkey"
 
 
 def create_booking(new: NewBooking) -> Booking:
@@ -22,8 +22,8 @@ def create_booking(new: NewBooking) -> Booking:
                 raise NotFoundError("slot not found")
             row = booking_repository.insert(conn, booking_id, new.slot_id, new.name, new.email)
     except psycopg.errors.UniqueViolation as error:
-        if error.diag.constraint_name != _ONE_CONFIRMED_PER_SLOT:
-            raise
+        if error.diag.constraint_name == _BOOKING_ID_CONSTRAINT:
+            raise  # a clash on the random booking id: a genuine fault, not a taken slot
         raise ConflictError("slot already booked") from error
     except psycopg.errors.ForeignKeyViolation as error:
         # The slot was removed (a reset) between the check and the insert.
