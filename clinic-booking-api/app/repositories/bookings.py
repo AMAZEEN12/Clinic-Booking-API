@@ -18,6 +18,22 @@ def get(conn: Connection, booking_id: str) -> dict | None:
     return conn.execute(f"SELECT {_COLUMNS} FROM bookings WHERE id = %s", (booking_id,)).fetchone()
 
 
+def list_for_email(conn: Connection, email: str, limit: int, offset: int) -> tuple[list[dict], int]:
+    """One page of a person's bookings, newest first, plus how many they have in all.
+
+    Emails match ignoring capital letters. The id breaks ties so pages never overlap.
+    """
+    total = conn.execute(
+        "SELECT count(*) AS total FROM bookings WHERE lower(email) = lower(%s)", (email,)
+    ).fetchone()["total"]
+    rows = conn.execute(
+        f"SELECT {_COLUMNS} FROM bookings WHERE lower(email) = lower(%s) "
+        "ORDER BY created_at DESC, id DESC LIMIT %s OFFSET %s",
+        (email, limit, offset),
+    ).fetchall()
+    return rows, total
+
+
 def get_confirmed_for_slot(conn: Connection, slot_id: str) -> dict | None:
     """The confirmed booking holding a slot, if any (at most one can exist, R7)."""
     return conn.execute(
