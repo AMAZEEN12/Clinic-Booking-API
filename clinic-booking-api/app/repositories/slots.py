@@ -19,6 +19,10 @@ def list_with_availability(conn: Connection) -> list[dict]:
     ).fetchall()
 
 
+def exists(conn: Connection, slot_id: str) -> bool:
+    return conn.execute("SELECT 1 FROM slots WHERE id = %s", (slot_id,)).fetchone() is not None
+
+
 def replace_all(conn: Connection, slots: list[Slot]) -> None:
     """Replace every slot. Deleting slots also removes their bookings, keys and payments."""
     conn.execute("SELECT pg_advisory_xact_lock(%s)", (_RESET_LOCK_ID,))
