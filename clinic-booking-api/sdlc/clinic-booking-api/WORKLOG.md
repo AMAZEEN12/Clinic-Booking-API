@@ -6,12 +6,12 @@ Source document: Koya Cohort 4 assessment, Task 1 brief + Clinic booking API Ope
 > Any agent opening this project: read this file first, then the "Conventions and guidelines" and "Decisions" sections, then the artifacts in this folder. Continue from "Resume here". Don't re-ask anything already answered below.
 
 ## Resume here
-- **Stage:** Build (implementation: EXECUTION step 9 in progress: rate limit done, audit lines next)
-- **Step:** EXECUTION step 9 (plan steps 10-11). Rate limit (plan step 10, R11, D14) is proven by `tests/test_rate_limit_api.py` (20 tests). Audit lines and the rest of the log-privacy test (plan step 11, N4, N5) are next.
-- **In progress:** nothing half-done. Verified 2026-11-04 on a local Postgres 16: `pytest` 159 passed (10 runs in a row), `ruff check .` and `ruff format --check .` clean; a real uvicorn run returned 10 normal responses then 429 with `Retry-After: 6`. The user's GitHub Actions run was green for the work before the rate limiter.
-- **Next action:** user commits the files and reports the GitHub Actions result (tick or cross). Then plan step 11: audit lines (booking created and cancelled, no names or emails) and the audit half of `tests/test_log_privacy.py` (N5).
-- **Waiting on:** the GitHub Actions result for the rate limiter commit; the user's answer on whether to keep 10 a minute (D46 risk).
-- **Not yet built:** the audit-line half of `tests/test_log_privacy.py` (N5; the access-log half exists), `tests/test_health_api.py` (N9), payment and dashboard extras, `web/`, `render.yaml`, README. When writing `render.yaml`: exactly one uvicorn worker (the limiter is in memory), do not add `--no-access-log` (the filter in `app/logsafe.py` already hides query strings), and leave `RATE_LIMIT_PER_MINUTE` unset unless the limit is changed.
+- **Stage:** Build (implementation: EXECUTION step 9 in progress: audit-line and health tests written, not yet run)
+- **Step:** EXECUTION step 9 (plan step 11, N4, N5, N9). The audit lines already existed in the code (`booking_created`, `booking_cancelled`, `slots_reset`). `tests/test_log_privacy.py` now covers them (N5) and the whole-flow no-names-or-emails check (N4). `tests/test_health_api.py` (N9) is new.
+- **In progress:** nothing half-done. The two test files passed `ruff check .` and `ruff format --check .` but were NOT run against Postgres (no package access in the sandbox).
+- **Next action:** user runs `pytest` and reports the result (and the GitHub Actions tick or cross). Then plan step 12: the web page (CORS is already done).
+- **Waiting on:** the pytest result for the two new files; the GitHub Actions result for the rate limiter commit; the user's answer on whether to keep 10 a minute (D46 risk).
+- **Not yet built:** payment and dashboard extras, `web/`, `render.yaml`, README. When writing `render.yaml`: exactly one uvicorn worker (the limiter is in memory), do not add `--no-access-log` (the filter in `app/logsafe.py` already hides query strings), and leave `RATE_LIMIT_PER_MINUTE` unset unless the limit is changed.
 
 
 ## How to continue without the sdlc skill
