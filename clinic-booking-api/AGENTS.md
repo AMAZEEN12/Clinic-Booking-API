@@ -7,6 +7,7 @@ Context for any AI agent or new team member working in this repository. Keep it 
 - Check: `python -c "import app.main"` (healthy output: no errors)
 - Test: `pytest` (needs `TEST_DATABASE_URL`, a Neon test branch, never production)
 - Lint: `ruff check .` and `ruff format --check .` (fix formatting with `ruff format .`; run before pushing)
+- Web page (in `web/`, React + Vite, pnpm): `pnpm --dir web install`, `pnpm --dir web dev`, `pnpm --dir web typecheck`, `pnpm --dir web lint`, `pnpm --dir web test`, `pnpm --dir web build`
 - Run: `uvicorn app.main:app --reload` with `DATABASE_URL` and `API_KEY` set. Use exactly one worker: the rate limiter is in memory. `DATABASE_URL` and `TEST_DATABASE_URL` are standard `postgresql://USER:PASSWORD@HOST/DB?sslmode=require` URLs.
 
 ## Conventions
@@ -18,7 +19,7 @@ Context for any AI agent or new team member working in this repository. Keep it 
 
 ## Architecture
 - `app/routers/` HTTP endpoints, `app/services/` booking, slot, payment and dashboard logic, `app/repositories/` SQL only, `app/security.py` key check, `app/ratelimit.py`, `app/errors.py`, `app/schemas.py`.
-- `migrations/` SQL migrations. `app/static/` the web page and dashboard. `tests/` pytest suite.
+- `migrations/` SQL migrations. `web/` the React web page and dashboard (adapted from the ClinicFlow template, hosted on Vercel). `tests/` pytest suite.
 - `docs/design/` visual reference. `sdlc/clinic-booking-api/` lifecycle artifacts.
 
 ## Protected paths
@@ -32,6 +33,8 @@ Rule: when an agent makes the same mistake twice, the correction goes here.
 - Dashboard endpoints must never return emails or full names; masked names only (D36).
 - Do not point tests at the production database; the guard in `tests/conftest.py` must stay.
 - Do not edit tests to make a fix pass; test-first (see test-plan.md).
+- Never commit `web/.env.local` or any real key; `VITE_API_KEY` is set only in Vercel (D11).
+- Do not put template features back that the Koya contract cannot serve (staff login, queue, walk-ins, visit types, live tracking).
 - Do not guess the Koya contract: the paging, idempotency, rate-limit and `/reset` choices are D12-D15 and need re-checking if the full spec appears.
 
 ## Verifying your work

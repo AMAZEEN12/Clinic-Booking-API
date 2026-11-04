@@ -31,6 +31,7 @@ Candidate skills to write (conventions found during the interview):
 - [ ] GitHub repository created (public, or invite `quadri40`); branch protection on main: pull request plus passing CI required, code owner is the user (D26); confirm it works on a solo repo
 - [ ] Neon project with two branches: production and test; connection strings stored only as secrets (`TEST_DATABASE_URL` in GitHub Actions; `DATABASE_URL` in Render)
 - [ ] Render web service created with `autoDeploy: false`; env vars `DATABASE_URL`, `API_KEY` set (D27, D29)
+- [ ] Vercel project (free plan) connected to the repo with root directory `web/`; env vars `VITE_API_BASE_URL` and `VITE_API_KEY`; Render env var `CORS_ORIGINS` set to the Vercel URL (D41, D42)
 - [ ] `.github/workflows/ci.yml` running build, test, lint with the test-DB secret (D22)
 - [ ] Free external uptime monitor pinging `/health` every 5 minutes, email alerts on (D31-D33)
 - [ ] Eval suite skeleton in `evals/` (stretch, D25)
@@ -48,11 +49,11 @@ Each step: actor · input → action → output · gate before the next step. "P
 7. **Double-booking guard** · agent · plan step 6 → R7, N2 · Gate: `tests/test_concurrency_api.py` green (one 201, 49 409); review the SQL.
 8. **Cancel, idempotency, paging** · agent · plan steps 7-9 → R8, R9, R10 (in this order, they share `services/bookings.py`) · Gate: `tests/test_cancel_api.py`, `tests/test_idempotency_api.py`, `tests/test_paging_api.py` green.
 9. **Rate limit, audit and privacy** · agent · plan steps 10-11 → R11, N4, N5 · Gate: `tests/test_rate_limit_api.py`, `tests/test_log_privacy.py` green.
-10. **Web page (responsive, phone and desktop)** · agent · plan step 12, design reference → R12, N7 · Gate: `tests/test_web_page_browser.py` green plus the manual checklist (user).
+10. **Web page from the ClinicFlow template (`web/`)** · agent + user · plan step 12, the template zip, D41 → add CORS to the API first; copy the template into `web/`, prune the staff, queue, walk-in and tracking parts, rewire to the Koya contract · Gate: `pnpm --dir web typecheck`, `lint`, `test`, `build` and the Playwright e2e pass; manual checklist (user).
 11. **Levels 1-5 checkpoint** · human (user) · all tests, local run → decide to start extras (D6) · Gate: user confirms every level is solid before the payment extra starts.
 12. **Simulated payment extra** · agent · plan step 14 → R13 · Gate: `tests/test_payment_api.py` green and core Booking schema unchanged.
-13. **Desktop dashboard extra** · agent · plan step 15, design reference (D35, D36) → R15, R16, R17, N10 · Gate: `tests/test_dashboard_api.py` and `tests/test_dashboard_page_browser.py` green; no emails or full names in any dashboard response; page checked at 390 px and 1280 px.
-14. **Package and deploy** · agent prepares, human deploys · plan step 16, release.md → render.yaml, README, pre-release checklist · Gate: CI green on main, user triggers the Render deploy (production gate, D26/D27).
+13. **Desktop dashboard extra** · agent · plan step 15, design reference (D35, D36) → R15, R16, R17, N10 · Gate: `tests/test_dashboard_api.py` and the `web/e2e` dashboard spec green; no emails or full names in any dashboard response; page checked at 390 px and 1280 px.
+14. **Package and deploy** · agent prepares, human deploys · plan step 16, release.md → render.yaml, web/vercel.json, README, pre-release checklist · Gate: CI green on main, user triggers the Render and Vercel deploys (production gate, D26/D27).
 15. **Verify live service** · human + agent · test-plan.md done-targets → run API checks against the https URL, restart check, cold-start timing, rollback rehearsal, uptime monitor on · Gate: all pass; user signs off.
 16. **Submit** · human (user) · Koya form → API base URL, API key, page URL, repo link, Loom (5 min or less, key not shown), short note (how far, two biggest decisions, next steps) · Gate: user submits; the service then stays frozen (release.md Freeze).
 17. **Maintain** · human + agent · monitoring.md → watch alerts and Render metrics daily; agent diagnoses and prepares fix PRs only · Gate: user triages every finding.
@@ -63,6 +64,7 @@ setup:    python -m venv .venv ; activate it ; pip install -r requirements-dev.t
 check:    python -c "import app.main"
 test:     pytest                            # needs TEST_DATABASE_URL (Neon test branch)
 lint:     ruff check . && ruff format --check .   # fix: ruff format .
+web:      pnpm --dir web install | dev | typecheck | lint | test | test:e2e | build
 run:      uvicorn app.main:app --reload     # needs DATABASE_URL and API_KEY set
 deploy:   Render dashboard, manual deploy   # production requires user (release manager)
 rollback: Render dashboard, redeploy previous successful deploy   # user only
@@ -108,7 +110,8 @@ rollback: Render dashboard, redeploy previous successful deploy   # user only
 |----------|---------------|-------|----------------|
 | Paging, idempotency, rate-limit and /reset choices are decided but unverified against the full Koya spec (C1, D12-D15) | spec.md | user | before step 16 (submit) |
 | Exact list of the 10 eval tasks | test-plan.md | user | after step 11 (stretch) |
-| `pytest-playwright` version and CI browser-install step | test-plan.md | agent | step 4 (ci.yml) and step 10 |
+| Playwright and Vitest versions (from the template's pnpm-lock.yaml) and the CI `web` job | test-plan.md | agent | step 4 (ci.yml) and step 10 |
+| Permission to reuse the ClinicFlow template, and that you can explain its code in the Loom (C10) | spec.md | user | step 10 |
 | Python version for Render and the exact dependency versions to pin (`pip freeze` after the first successful install) | plan.md | agent | step 2 |
 | Neon and Render free-plan limits for "keep it running" (sleep, retention, hours) | release.md | user | step 14 |
 | Whether GitHub branch protection can require passing CI on a solo repo without a second approver | release.md | user | step 1 |

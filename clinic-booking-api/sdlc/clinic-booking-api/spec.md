@@ -25,12 +25,12 @@ Items marked (A) were decided by the user in D12-D15 because the full Koya spec 
 | R9 | A retried booking request never creates a duplicate (A, D12): with an `Idempotency-Key` header, the same key and body returns the original response (same status and booking id) and the same key with a different body returns 409; without a header, a repeat of the same slot_id + email already confirmed returns the existing booking with the same response | Sending the same request twice (with and without a key) returns the same booking id, and a single row exists |
 | R10 | A person can page through their bookings: GET /bookings?email=&page=&limit= (A, D13) | page starts at 1, `limit` default 10, max 100; response `{items, page, limit, total}`; paging through all pages returns every booking once, newest first; missing email returns 400 |
 | R11 | Spamming bookings is limited (A, D14): 10 POST /bookings per minute per key+IP, configurable in one value | The 11th request inside a minute returns 429 with `Retry-After` and `{"error":...}`; normal use is unaffected |
-| R12 | A web page (design: docs/design/web-reference.jpeg) lets a patient pick a day and time from the slots, enter name and email, book, and see the confirmation, and works on both a phone and a desktop browser (D35) | In a browser on the deployed URL at 390 px and 1280 px wide: day chips and time grid reflect GET /slots, taken slots are disabled and labelled, booking confirmation shows booking id, slot and status; no horizontal scrolling; errors (taken slot, invalid email) show a clear message |
+| R12 | A web page, built from the user's ClinicFlow React template (`web/`, D41) in its Emerald look, lets a patient pick a day and time from the slots, enter name and email, book, see the confirmation, look up a booking by its id and cancel it; it works on both a phone and a desktop browser | In a browser on the deployed URL at 390 px and 1280 px wide: day chips and time grid reflect GET /slots, taken slots are disabled and labelled, the confirmation shows booking id, slot and status; lookup and cancel work; no horizontal scrolling; errors (taken slot, invalid email) show a clear message |
 | R13 | Extra (first): simulated payment, separate from the core contract. POST /bookings/{id}/payment marks a confirmed booking paid with a fake reference; GET /bookings/{id}/payment returns its state. No real money, no card data | Paying a confirmed booking returns 200 paid; paying a cancelled booking returns 409; the Booking schema returned by core endpoints is unchanged |
 | R14 | All error responses use `{"error": "<message>"}` | Every non-2xx response in the test suite parses to an object with a string `error` |
 | R15 | Extra: GET /dashboard/summary?date=YYYY-MM-DD returns counts for that day (default today, UTC) (A) | Returns 200 `{date, booked, cancelled, open_slots, total_slots}`; counts match the data after bookings and cancellations; wrong or missing key returns 401; the Koya endpoints are unchanged |
 | R16 | Extra: GET /dashboard/appointments?date=YYYY-MM-DD returns that day's appointments, sorted by start time, with masked patient names (D36) | Each item has `booking_id, slot_id, provider, start, end, patient, status, payment`; `patient` is first name plus last initial (Ada O.); no email and no full name appears anywhere in the response |
-| R17 | Extra: a desktop dashboard page (design: the clinic dashboard card) shows summary cards and the appointment list with status badges | At 1280 px: cards Booked, Cancelled, Open slots and a list with Confirmed, Cancelled and Paid (demo) badges, matching the design's layout; loads its data from the R15 and R16 endpoints |
+| R17 | Extra: a desktop dashboard page in the same web app (built from the template's dashboard components, D41) shows summary cards and the appointment list with status badges | At 1280 px: cards Booked, Cancelled, Open slots and a list with Confirmed, Cancelled and Paid (demo) badges; loads its data from the R15 and R16 endpoints |
 
 Deferred extras (not in this spec pass, see intent.md out of scope): accounts/login on the web page, in-app notifications, email notifications, the Insurance row from the reference design, reminders, rescheduling and the Visited / Reminder sent badges (D16, D35).
 
@@ -53,8 +53,8 @@ Deferred extras (not in this spec pass, see intent.md out of scope): accounts/lo
 - **Web layer (FastAPI):** routers for slots, bookings, payments and the dashboard; a key check and a rate limiter that run before the handlers; exception handlers that return `{"error":...}`.
 - **Service layer:** booking logic, idempotency handling, cancellation, payment simulation, audit logging.
 - **Persistence (psycopg 3 with a connection pool, plain SQL, forward-only SQL migration files run at startup):** PostgreSQL on Neon.
-- **Web page:** static HTML, CSS and JS served by the same FastAPI app (same origin, one deploy).
-- **Docker image** built for Render; configuration via environment variables.
+- **Web page (`web/`):** React 19 + TypeScript + Vite single-page app adapted from the user's ClinicFlow template (D41), hosted separately on Vercel. It calls this API from the browser, so the API allows that origin through CORS (D42).
+- **Configuration** comes from environment variables (database URL, API key, allowed web origin); no Docker (D39).
 
 ### Data flow (booking)
 1. Request reaches the key filter (401 if wrong) then the rate limiter (429 if over).
@@ -84,7 +84,7 @@ Deferred extras (not in this spec pass, see intent.md out of scope): accounts/lo
 - `payments(booking_id text pk fk, status text, reference text, paid_at timestamptz)` for the extra only.
 
 ### UI / UX
-Visual reference: `docs/design/web-reference.jpeg` (user-supplied; D16, D35). Style taken from it: near-white cards on a light ground, navy text and selected state, amber accent, small uppercase amber eyebrow labels, rounded corners.
+Visual reference: the user's ClinicFlow web template (`web/`, D41), the "Emerald" look: warm paper background, white cards, deep emerald text and buttons, a lime accent (lime only on emerald or with emerald text), rounded corners; its colour pairs are already checked for WCAG AA. The earlier image `docs/design/web-reference.jpeg` and the rough mock are superseded; the flow below stays, restyled by the template. The template's staff login, queue, walk-ins, visit types and live tracking are not built (they need features outside the Koya contract).
 
 **Mobile view (patient booking flow, R12):**
 1. **Choose a time:** clinic card (static placeholder text), day chips built from the dates in GET /slots, a grid of time buttons for the chosen day (provider shown on each slot). Slots with `available:false` are disabled and labelled "Taken". The selected slot is highlighted and named on the button: "Confirm booking, Tue 10:30".
@@ -114,8 +114,10 @@ Not applicable: greenfield. The only external contract is the Koya spec.
 |---|----|----|----|----|
 | C1 | Spec gaps: paging shape, idempotency signal, rate-limit thresholds and response, /reset body were not in the pasted schema | user | Decided with the user in D12-D15. Each lives in one config value or class so it is a one-line change; re-check against the full Koya spec if it becomes available | decided, unverified |
 | C2 | Render free tier sleeps after idle (~50 s cold start) and has small memory; a grader request could time out | user | Keep-alive ping of the public /health (D31), small dependency set, small connection pool and a single worker; verify cold start time before submitting | open |
-| C3 | The web page is public but the API needs a key; one key is used everywhere (D11), so it is visible in the page source and anyone who finds it could call /reset and wipe bookings | user | Risk accepted by user. Mitigations: the key is injected into the page at runtime from the environment variable and never committed to Git; the repo and Loom must not show it; rotate it after Koya finishes | accepted risk (D11) |
+| C3 | The web page is public but the API needs a key; one key is used everywhere (D11), so it is visible in the page's JavaScript (baked in at build time) and anyone who finds it could call /reset and wipe bookings | user | Risk accepted by user. Mitigations: the key is injected into the page at runtime from the environment variable and never committed to Git; the repo and Loom must not show it; rotate it after Koya finishes | accepted risk (D11) |
 | C4 | In-memory rate limiting resets on restart and does not share across instances | user | Acceptable on a single Render instance; document the limit | accepted pending confirmation |
+| C9 | The page is hosted on a different origin from the API, so the browser needs CORS, including the preflight request that carries the key header (D42) | user | The API allows only the origin set in `CORS_ORIGINS`, answers the preflight before the key check, and exposes `Retry-After` | resolved in design |
+| C10 | The template is a large project built for another API (visit types, staff login, queue, reference codes); keeping unused parts adds risk and code the user cannot explain in the Loom | user | Trim to the patient flow and the dashboard, delete the rest, rewire to this contract (D41) | open |
 | C5 | The payment extra must not alter core responses | user | Separate endpoints and table; Booking schema untouched (R13) | resolved in design |
 | C7 | The reference design includes reminders, rescheduling, a Visited status and an Insurance row that the Koya contract does not support, and its grey/amber colours risk low contrast | user | The dashboard and responsive page are now in scope (D35). Reminders, rescheduling, Visited / Reminder sent and the Insurance row stay out of scope; 'Reminders sent' and 'Reschedule requests' cards become Cancelled and Open slots; contrast fixed in the UI section | resolved in design |
 | C8 | A dashboard lists patients, but the API key is public in the page source (D11), so anyone with the key could read dashboard data | user | Masked names only, no emails (D36, R16, N10); dashboard endpoints are read-only and additive | resolved in design |
@@ -125,7 +127,7 @@ Not applicable: greenfield. The only external contract is the Koya spec.
 - [x] Spec gaps (paging, idempotency, rate limit, /reset body) · answered: D12-D15, unverified against the full Koya spec (C1)
 - [x] Language, framework, database, host · answered: Python and FastAPI, PostgreSQL on Neon, Render (D10, D38, D39)
 - [x] Which extra first · answered: simulated payment (R13)
-- [x] Web page visual reference · answered: docs/design/web-reference.jpeg (D16)
+- [x] Web page visual reference · answered: the ClinicFlow React template (D41), superseding the image (D16)
 
 ## Measurement
 - Leading: time from the intent.md commit to the spec.md commit.

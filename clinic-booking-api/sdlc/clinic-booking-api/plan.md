@@ -3,7 +3,7 @@
 Derived from: intent.md (2026-10-31), spec.md (2026-10-31) · Status: accepted
 Accepted by: user, 2026-10-31 · Amended 2026-11-01 for the switch from Java to Python (D38, D39) · Higher-risk sign-off: not required (D5)
 Supporting skills: none
-Stack (D38, D39): Python 3.12+, FastAPI (synchronous endpoints), psycopg 3 with a connection pool and plain SQL, SQL migration files with a small runner, PostgreSQL on Neon, pytest, Ruff, Render (native Python, no Docker). Repo state: greenfield with a Python scaffold (requirements, pyproject, empty `app/` package).
+Stack (D38, D39, D41): Python 3.12+, FastAPI (synchronous endpoints), psycopg 3 with a connection pool and plain SQL, SQL migration files with a small runner, PostgreSQL on Neon, pytest, Ruff, Render (native Python, no Docker). Web page: React 19 + TypeScript + Vite in `web/`, adapted from the user's ClinicFlow template, hosted separately on Vercel. Repo state: Python scaffold with steps 1-4 of the API written.
 
 Source paths below are under `app/` unless they start with `tests/`, `migrations/` or are at the repo root.
 
@@ -12,8 +12,8 @@ Source paths below are under `app/` unless they start with `tests/`, `migrations
 |------|--------------------------|----------------------|
 | `requirements.txt`, `requirements-dev.txt`, `pyproject.toml` (Ruff and pytest settings) | new | all (build) |
 | `.gitignore` | new | N1 (no secrets committed) |
-| `main.py` (app, middleware wiring, static files, startup migrations) | new | all |
-| `config.py` (settings read from environment: API key, database URL, limits) | new | R10, R11, N1 |
+| `main.py` (app, middleware wiring incl. CORS, startup migrations) | new | all |
+| `config.py` (settings read from environment: API key, database URL, allowed web origins `CORS_ORIGINS`, limits) | new | R10, R11, N1, D42 |
 | `db.py` (connection pool, migration runner) | new | R7, N2, N3 |
 | `migrations/V1__schema.sql` (slots, bookings + partial unique index, idempotency_keys, payments) | new | R7, N2, N3 |
 | `security.py` (API key check, constant-time compare; `/health`, `/config.js` and static files exempt) | new | R5, N1 |
@@ -24,15 +24,15 @@ Source paths below are under `app/` unless they start with `tests/`, `migrations
 | `routers/bookings.py` | new | R3, R4, R6, R8, R9, R10 |
 | `routers/payments.py` | new | R13 |
 | `routers/dashboard.py` (read-only, masked names) | new | R15, R16, N10 (D35, D36) |
-| `routers/health.py` (`GET /health`, `/config.js` with the key from env) | new | R12, N9, D11 |
+| `routers/health.py` (`GET /health`) | new | R12, N9, D11 |
 | `services/slots.py`, `services/bookings.py`, `services/payments.py`, `services/dashboard.py`, `audit.py` | new | R2-R4, R7-R10, R13, R15, R16, N5 |
 | `repositories/slots.py`, `repositories/bookings.py`, `repositories/idempotency.py`, `repositories/payments.py`, `repositories/dashboard.py` (SQL only) | new | R1-R4, R7-R10, R13, R15, R16 |
-| `static/index.html`, `static/app.css`, `static/app.js` (responsive from phone to desktop; design: docs/design/web-reference.jpeg) | new | R12, N7 |
-| `static/dashboard.html`, `static/dashboard.js` | new | R17 |
+| `web/` (React 19 + TypeScript + Vite app copied from the ClinicFlow template, trimmed to the patient flow and the dashboard; `.env.example` with `VITE_API_BASE_URL` and `VITE_API_KEY`; `vercel.json` with the single-page-app rewrite) | new | R12, R17, N7 (D41) |
+| `web/src/services/**`, `web/src/models/**`, `web/src/routes/**` (rewired to the Koya contract: slots, bookings, cancel, dashboard) | modified | R1, R3, R4, R8, R15-R17 |
 | `tests/conftest.py` (database fixtures and the guard from D19) | new | N2, N3 |
 | `tests/test_*_api.py`, `tests/test_log_privacy.py` (see Proof) | new | R1-R16, N1-N10 |
-| `tests/test_web_page_browser.py`, `tests/test_dashboard_page_browser.py` (pytest-playwright) | new | R12, R17, N7 (D24) |
-| `.github/workflows/ci.yml` (install, lint, test on every push; test DB from encrypted secret) | new | feedback loop (D22) |
+| `web/e2e/*.spec.ts` (Playwright, from the template) and `web/src/**/*.test.ts` (Vitest) | new | R12, R17, N7 (D24, D41) |
+| `.github/workflows/ci.yml` (API job: install, lint, test; web job: pnpm install, typecheck, lint, Vitest, build; end-to-end job) | new | feedback loop (D22) |
 | `render.yaml` (native Python service, `autoDeploy: false`, single worker), `README.md` | new | N3, N6, N9, C2 |
 | `AGENTS.md`, `REVIEW.md` | modified / new | repo policy |
 
@@ -48,11 +48,11 @@ Source paths below are under `app/` unless they start with `tests/`, `migrations
 9. Paging by email. (covers R10)
 10. Rate limiter on POST /bookings (in-memory window per key+IP, limits from config). (covers R11)
 11. Audit lines and log-privacy test. (covers N4, N5)
-12. Web page following the reference, responsive from phone to desktop, plus `/config.js`. (covers R12, N7)
+12. Web page: add CORS to the API first; copy the ClinicFlow template into `web/`, delete the staff, queue, walk-in and tracking parts, rewire it to the Koya contract. (covers R12, N7)
 13. Checkpoint: Levels 1-5 green end to end. Only then start extras (D6).
 14. Simulated payment endpoints and "Pay now (demo)" button. (covers R13)
-15. Desktop dashboard extra: summary and appointments endpoints with masked names, `dashboard.html`, responsive checks at 390 px and 1280 px. (covers R15, R16, R17, N10)
-16. `render.yaml`, README; deploy; keep-alive ping of /health; measure cold start; run all checks against the live URL. (covers N3, N6, N9, C2)
+15. Desktop dashboard extra: summary and appointments endpoints with masked names, the dashboard page in `web/`, responsive checks at 390 px and 1280 px. (covers R15, R16, R17, N10)
+16. `render.yaml`, `web/vercel.json`, README; deploy the API on Render and the page on Vercel; keep-alive ping of /health; measure cold start; run all checks against the live URL. (covers N3, N6, N9, C2)
 
 ## Parallelization
 - Independent (separate workspaces/branches, different files): web page (step 12, needs only the contract from steps 4-5), dashboard.html (step 15 front end, needs only the endpoint contract), `render.yaml` + README (step 16 files), `ratelimit.py` + its test (step 10).
@@ -67,7 +67,9 @@ Source paths below are under `app/` unless they start with `tests/`, `migrations
 | Tests wipe production data | lost bookings | Guard in `tests/conftest.py` (D19); separate Neon branch; secrets never committed |
 | Render cold start and Neon compute sleep | first grader request times out (C2, N6) | Keep-alive ping of the public /health (it also runs `SELECT 1`), small dependency set, small connection pool (max 5), measure cold start before submitting |
 | In-memory rate limiter breaks if more than one worker process runs | spam limit not enforced (R11, C4) | Run uvicorn with exactly one worker (set in `render.yaml`); document it in AGENTS.md |
-| `/config.js` exposes the key to anyone (D11) | key leaks; `/reset` reachable | Accepted risk; key from env only, never in Git or Loom, rotate after Koya finishes |
+| The API key is baked into the web bundle (`VITE_API_KEY`) and visible to anyone (D11) | key leaks; `/reset` reachable | Accepted risk; never commit `web/.env.local`; set it only in Vercel; never show it in the Loom; rotate after Koya finishes |
+| CORS misconfigured (wrong origin, preflight blocked by the key check) | the page cannot call the API (D42) | CORS middleware is outermost; `tests/test_cors_api.py`; `CORS_ORIGINS` set to the exact Vercel URL |
+| Template is large (about 9,000 lines) and built for another API | wasted time; unexplained code in the Loom (C10) | Delete everything outside the patient flow and dashboard; keep a short list of what was kept and why; reuse its design system and components rather than its data layer |
 | Dashboard leaks patient details through the public key (D11) | privacy breach (N4, N10) | Masked names only, never emails; `tests/test_dashboard_api.py` asserts no `@` and no full name in responses |
 | Library API drift (FastAPI, Pydantic v2, psycopg 3) from older tutorials | wasted time on removed or renamed APIs | Check current docs; pin versions with `pip freeze` after the first successful install |
 | Riskiest step: step 8 (idempotency) | retries, the unique index and concurrency interact; the Koya check is unknown (C1) | Isolate the logic in one service; keep the header name and replay behaviour in one place |
@@ -80,7 +82,7 @@ Source paths below are under `app/` unless they start with `tests/`, `migrations
 - Row lock `SELECT ... FOR UPDATE` as the only guard: rejected as the sole mechanism; the unique index is simpler and always enforced, and cancelled rows stay out of it.
 - SQLite or in-memory databases for tests: rejected by the user in favour of a Neon test branch (D19).
 - Redis or a rate-limit library: rejected as extra infrastructure or dependency for a single worker.
-- Separate frontend (React) hosted elsewhere: rejected; static page in the same service avoids CORS and a second deploy.
+- Static page served by the API (single deploy, no CORS): rejected in favour of the user's ClinicFlow React template hosted separately on Vercel (D41); costs a Node toolchain, a second deploy and CORS.
 
 ## Proof
 | Requirement | Test or check that proves it |
@@ -95,11 +97,12 @@ Source paths below are under `app/` unless they start with `tests/`, `migrations
 | R9 | `tests/test_idempotency_api.py` (same key, no key, different body, parallel same key) |
 | R10 | `tests/test_paging_api.py` (page through all items once, limits, missing email) |
 | R11 | `tests/test_rate_limit_api.py` (11th request returns 429 with Retry-After) |
-| R12, N7 | `tests/test_web_page_browser.py` (happy path at phone and desktop widths) plus a manual checklist on the deployed URL (design match, keyboard, contrast, phone and desktop width) |
+| R12, N7 | `web/e2e` Playwright happy path at phone and desktop widths, Vitest tests for the form and API mapping, plus a manual checklist on the deployed URL (design match, keyboard, contrast, phone and desktop width) |
 | R13 | `tests/test_payment_api.py` (pay, pay cancelled returns 409, core schema unchanged) |
 | R14, N8 | `tests/test_error_format_api.py` (every non-2xx has a string `error`, no stack traces) |
 | R15, R16, N10 | `tests/test_dashboard_api.py` (counts, order, masked names, no emails, 401 without key) |
-| R17 | `tests/test_dashboard_page_browser.py` (desktop viewport) plus manual design match |
+| CORS (D42) | `tests/test_cors_api.py` (preflight without the key, allowed origin, other origins refused) |
+| R17 | `web/e2e` dashboard spec (desktop viewport) plus manual design match |
 | N3 | restart check on the deployed service (booking survives) |
 | N4, N5 | `tests/test_log_privacy.py` (no names/emails in captured logs; one audit line per state change) |
 | N6, N9 | timing check of warm and cold requests; `tests/test_health_api.py` |

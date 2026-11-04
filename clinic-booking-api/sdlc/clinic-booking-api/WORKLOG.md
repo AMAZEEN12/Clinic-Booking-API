@@ -6,11 +6,11 @@ Source document: Koya Cohort 4 assessment, Task 1 brief + Clinic booking API Ope
 > Any agent opening this project: read this file first, then the "Conventions and guidelines" and "Decisions" sections, then the artifacts in this folder. Continue from "Resume here". Don't re-ask anything already answered below.
 
 ## Resume here
-- **Stage:** Build (all lifecycle artifacts written; implementation not started)
-- **Step:** EXECUTION step 2 (scaffold) redone for Python; Neon setup in progress (step 1)
-- **In progress:** documents amended for the Python switch; Python scaffold written (requirements files, pyproject, empty app package, .gitignore); Java files removed. Scaffold gate not yet verified by the user.
-- **Next action:** User creates a virtual environment, runs `pip install -r requirements-dev.txt`, `python -c "import app.main"`, `ruff check .` and reports; user finishes Neon setup and sets TEST_DATABASE_URL (a standard postgresql:// URL, no JDBC conversion). Then step 3: migrations/V1__schema.sql, the migration runner and tests/conftest.py guard.
-- **Waiting on:** user: scaffold check result, and Neon test branch URL set as TEST_DATABASE_URL
+- **Stage:** Build (implementation: EXECUTION steps 2-3 of 16 in progress)
+- **Step:** EXECUTION step 5 (plan step 4: slots and /reset) written, user results pending; web page direction changed to the React template (D41); CORS (D42) written
+- **In progress:** documents amended for D41/D42 (spec, plan, test-plan, release, EXECUTION, AGENTS). CORS code and tests written: app/config.py, app/main.py, tests/__init__.py, tests/test_cors_api.py. Web template not yet copied into web/.
+- **Next action:** User runs `python -m pytest`, `ruff check .`, `ruff format .` (plan step 4 and CORS tests) and reports. Then continue the API: plan step 5 (create/get booking, R3, R4, R6) so the web page has real endpoints; then web: copy template into web/, prune, rewire (read template files: models, services, routes, components first).
+- **Waiting on:** user's pytest/ruff results (plan step 4 + CORS)
 
 ## How to continue without the sdlc skill
 1. Stages run in order: Plan (intent.md), Design (spec.md), Build (plan.md + repo AGENTS.md), Test (test-plan.md), Deploy (release.md + repo REVIEW.md), Maintain (monitoring.md), then EXECUTION.md.
@@ -87,6 +87,9 @@ Source document: Koya Cohort 4 assessment, Task 1 brief + Clinic booking API Ope
 | D37 | 2026-11-01 | Scaffold choices (EXECUTION step 2): Spring Boot pinned to 4.0.0 for now (latest 4.0.x patch could not be checked offline; bump later); Boot 4 modular starters (webmvc, validation, jdbc, flyway, plus -test companions); flyway-database-postgresql added; DATABASE_URL / TEST_DATABASE_URL are JDBC URLs with user, password and sslmode as query parameters (no URL-parsing code); Spotless declared in the pom with unverified versions; Maven wrapper files NOT generated (no Maven or network in the sandbox): user runs `mvn -N wrapper:wrapper` once or copies mvnw files from a Spring Initializr project | Offline sandbox: no Maven, only a Java 21 runtime, no network | Claude | pom.xml, application.properties, AGENTS.md | superseded (D38) |
 | D38 | 2026-11-01 | SWITCH OF STACK: Python with FastAPI replaces Java with Spring Boot (supersedes D8, D9, D17, D18, D20, D21, D37). Reasons: fits the AI automation programme, faster to build in the one-week window, lighter cold start on Render, simpler hosting. PostgreSQL on Neon, the Koya contract, the spec requirements, the lifecycle artifacts and the Neon test-branch approach are unchanged | User chose to switch after Claude compared the two | user | plan.md, spec.md, test-plan.md, AGENTS.md, REVIEW.md, release.md, EXECUTION.md | active |
 | D39 | 2026-11-01 | Python stack details (proposed by Claude, accepted with the switch): Python 3.12+; FastAPI with synchronous endpoints; psycopg 3 with a connection pool (max 5) and plain SQL, no ORM; forward-only SQL migration files in migrations/ run by a small runner at startup; standard postgresql:// URLs (no JDBC conversion); pytest + httpx for tests; Ruff for lint and format; pytest-playwright for browser tests; CI on Python 3.12; Render native Python service (no Dockerfile), `autoDeploy: false`, exactly ONE uvicorn worker because the rate limiter is in memory; test file naming tests/test_<area>_api.py | Keep the plan's structure and gates, only the tools change | user (accepted) | plan.md, test-plan.md, AGENTS.md, release.md, EXECUTION.md | active |
+| D40 | 2026-11-01 | POST /reset returns 200 with body {"slots": N} (N = slots now stored); times without a zone are read as UTC; every time is returned in UTC with a Z suffix; duplicate slot ids or end <= start return 400 and change nothing; two simultaneous resets are serialised with an advisory lock. The response body is a guess (unverified against the Koya spec, C1) | Spec gives no /reset response shape | Claude (assumption) | spec.md R2, plan.md | active |
+| D41 | 2026-11-01 | Web page approach: use the user's ClinicFlow React template (React 19 + TypeScript + Vite + Tailwind + Redux Toolkit, uploaded as clinicflow-web-main.zip) as the web page, TRIMMED to the patient flow (home/book, confirmation, look up booking by id, cancel) and the dashboard, REWIRED to the Koya contract, in a `web/` folder of the same repo, hosted SEPARATELY on Vercel. Dropped: staff login, queue, walk-ins, visit types, reference codes/manage tokens, live tracking. Supersedes the plain static page, the image reference (D16) and the same-service/one-deploy plan; amends D24 (Playwright + Vitest from the template), D11 (key baked into the bundle as VITE_API_KEY, still public) and D27 (Vercel deploys also manual). Caution given: confirm permission to reuse the template and be able to explain it in the Loom (C10) | User chose it over a plain page and over serving the build from the API | user | spec.md, plan.md, test-plan.md, release.md, EXECUTION.md, AGENTS.md | active |
+| D42 | 2026-11-01 | CORS: the API allows only the web origins listed in the CORS_ORIGINS environment variable (comma-separated; the Vercel URL in production); CORSMiddleware is added last so it is outermost and answers preflight before the key check; allowed headers X-API-Key, Content-Type, Idempotency-Key; Retry-After exposed. Tests set a fake origin in tests/__init__.py | Page and API are on different origins | Claude (follows from D41) | app/main.py, app/config.py, release.md | active |
 
 ## Questions and answers
 | # | Date | Stage | Question | Answer | Status |
@@ -131,6 +134,7 @@ Source document: Koya Cohort 4 assessment, Task 1 brief + Clinic booking API Ope
 | Q41 | 2026-11-01 | Build | Which language: Java or Python? | Asked Claude for advice; chose to switch to Python (FastAPI) and update the documents | answered (D38, D39) |
 | Q39 | 2026-10-31 | Design (reopened) | Rest of the design? | 'I want mobile and desktop view'; clarified: both the phone flow plus desktop dashboard AND a responsive booking page | answered (D35) |
 | Q40 | 2026-10-31 | Design (reopened) | Dashboard patient details? | Masked names only, no emails | answered (D36) |
+| Q42 | 2026-11-01 | Design (reopened) | How to use the uploaded ClinicFlow template? | React template, trimmed and rewired, hosted separately on Vercel | answered (D41) |
 | Q6 | 2026-10-31 | Intake | Spec gaps: GET /bookings query params and paging shape, idempotency mechanism, rate-limit response, /reset body | Not in pasted schema; decided in D12-D15 | answered (decided, unverified against Koya spec) |
 
 ## Activity log
@@ -182,3 +186,11 @@ Source document: Koya Cohort 4 assessment, Task 1 brief + Clinic booking API Ope
 - 2026-11-01 · user · Fixed scaffold locally (src folder had been nested under api/); `mvn clean package -DskipTests` returns BUILD SUCCESS. Step 2 gate met. Maven wrapper still not generated
 - 2026-11-01 · user · Asked whether Java or Python is better; chose to switch to Python (FastAPI)
 - 2026-11-01 · Claude · Logged D38, D39 (Q41); marked D8, D9, D17, D18, D20, D21, D37 superseded; rewrote plan.md; amended spec.md, test-plan.md, release.md, EXECUTION.md, AGENTS.md, REVIEW.md; removed Java scaffold, created Python scaffold
+- 2026-11-01 · user · Scaffold gate passed on Python 3.14 (install, import app.main, ruff check)
+- 2026-11-01 · Claude · Wrote step 3 files (schema V1, migration runner, test guard with host+database identity check, migration tests); unverified against a real database
+- 2026-11-01 · user · Guard tests 5/5 passed; asked that every new or edited file be pasted in chat with its path (no more zips)
+- 2026-11-01 · Claude · Wrote plan step 3 (errors, key check, /health, startup wiring) and its tests; pasted in chat
+- 2026-11-01 · user · Neon test branch set up; migration, guard, auth, health and error-format tests all passed
+- 2026-11-01 · Claude · Wrote plan step 4 (slots list, /reset, schemas, audit, db dict rows); logged D40; pasted files in chat
+- 2026-11-01 · user · Uploaded clinicflow-web-main.zip and chose to use it (trimmed, rewired, separate Vercel deploy) instead of the earlier image
+- 2026-11-01 · Claude · Read the template (React/Vite, ~9,000 lines, ClinicFlow API contract); logged D41, D42; amended documents; wrote CORS code and tests

@@ -2,7 +2,7 @@
 
 Derived from: spec.md (2026-10-31), plan.md (2026-10-31) · Status: accepted (user, 2026-10-31)
 Supporting skills: none
-Decisions applied: D19 (Neon test branch), D20 (lint tool, now Ruff via D39), D22 (GitHub Actions on every push), D23 (every requirement has a test), D24 (manual checklist plus browser test), D25 (small eval suite as a stretch goal)
+Decisions applied: D19 (Neon test branch), D20 (lint tool, now Ruff via D39), D22 (GitHub Actions on every push), D23 (every requirement has a test), D24 (manual checklist plus browser tests; amended by D41: Playwright and Vitest from the web template), D25 (small eval suite as a stretch goal)
 
 ## Feedback loop
 The agent runs these itself and iterates until they pass, before any human reviews the work.
@@ -11,9 +11,10 @@ The agent runs these itself and iterates until they pass, before any human revie
 | Install and import | `pip install -r requirements-dev.txt` then `python -c "import app.main"` | exits 0, no import errors |
 | Test | `pytest` (needs `TEST_DATABASE_URL`, a Neon test branch) | exits 0, all tests pass, none skipped |
 | Lint | `ruff check .` and `ruff format --check .` | exits 0, no violations |
-| Visual (UI only) | `tests/test_web_page_browser.py` (pytest-playwright, run inside `pytest`) plus the manual checklist below | happy path passes; page matches `docs/design/web-reference.jpeg` as adjusted in spec.md UI / UX |
+| Web build | `pnpm --dir web typecheck`, `pnpm --dir web lint`, `pnpm --dir web test` (Vitest), `pnpm --dir web build` | all exit 0 |
+| Visual (UI only) | `pnpm --dir web test:e2e` (Playwright happy path at phone and desktop widths) plus the manual checklist below | tests pass; page matches the Emerald template look |
 
-CI (GitHub Actions, every push) runs the same three commands on Python 3.12 with `TEST_DATABASE_URL` as an encrypted secret and `playwright install --with-deps chromium` as the browser-install step.
+CI (GitHub Actions, every push) runs the same three commands on Python 3.12 with `TEST_DATABASE_URL` as an encrypted secret and a separate `web` job (Node 22, pnpm: install, typecheck, lint, Vitest, build); the Playwright end-to-end tests run against a locally started API on the test database after `playwright install --with-deps chromium`.
 
 ## Done-targets
 - Every `tests/test_*_api.py` file listed under Traceability passes.
@@ -36,11 +37,11 @@ CI (GitHub Actions, every push) runs the same three commands on Python 3.12 with
 | R9 | `tests/test_idempotency_api.py` (same key, no key, different body, parallel same key) | integration |
 | R10 | `tests/test_paging_api.py` | integration |
 | R11 | `tests/test_rate_limit_api.py` | integration |
-| R12 | `tests/test_web_page_browser.py` (phone 390 px and desktop 1280 px viewports) plus manual checklist | e2e + manual |
+| R12 | `web/e2e` Playwright test (phone 390 px and desktop 1280 px), Vitest tests for the booking form and API mapping, plus manual checklist | e2e + unit + manual |
 | R13 | `tests/test_payment_api.py` | integration |
 | R14 | `tests/test_error_format_api.py` | integration |
 | R15, R16 | `tests/test_dashboard_api.py` | integration |
-| R17 | `tests/test_dashboard_page_browser.py` (desktop viewport) plus manual design match | e2e + manual |
+| R17 | `web/e2e` dashboard spec (desktop viewport) plus manual design match | e2e + manual |
 | N1 | `tests/test_auth_api.py`; repository scan for secrets in CI | integration + static |
 | N2 | `tests/test_concurrency_api.py`; migration test that the partial unique index exists | integration |
 | N3 | restart check on the deployed service | manual |
@@ -50,6 +51,7 @@ CI (GitHub Actions, every push) runs the same three commands on Python 3.12 with
 | N8 | `tests/test_error_format_api.py` (malformed JSON, no stack traces) | integration |
 | N9 | `tests/test_health_api.py` (200 without a key, 503 when the database is down); uptime monitor configured | integration + manual |
 | N10 | `tests/test_dashboard_api.py` (no emails, no full names in any dashboard response) | integration |
+| D42 (CORS) | `tests/test_cors_api.py` | integration |
 
 Manual web page checklist (run on the live URL): matches the design look on a phone (390 px) and on a desktop (1280 px); day chips and time grid follow GET /slots; taken slots disabled and labelled; Tab reaches every control with visible focus; error messages announced; no horizontal scrolling at either width; dashboard shows only masked names; no key in the screen recording.
 
@@ -73,7 +75,7 @@ Stretch goal (D25), done after Levels 1-5 and the first extra are solid.
 
 ## Open questions
 - [ ] Exact list of the 10 eval tasks · UNRESOLVED (owner: user, after Levels 1-5)
-- [ ] `pytest-playwright` version and the CI browser-install step · UNRESOLVED (owner: agent, verified when writing requirements-dev.txt and ci.yml)
+- [ ] Playwright and Vitest versions come from the template's `pnpm-lock.yaml`; confirm they install, and write the CI `web` job · UNRESOLVED (owner: agent, when writing ci.yml)
 
 ## Measurement
 - Leading: first-pass CI success rate for agent-written changes; eval pass rate over time.
