@@ -15,9 +15,7 @@ def slot(slot_id: str, provider: str = "Dr Ade", hour: int = 9) -> dict:
     }
 
 
-def new_booking(
-    slot_id: str = "s1", name: str = "Ada Obi", email: str = "ada@example.com"
-) -> dict:
+def new_booking(slot_id: str = "s1", name: str = "Ada Obi", email: str = "ada@example.com") -> dict:
     """A booking request body."""
     return {"slot_id": slot_id, "name": name, "email": email}
 
