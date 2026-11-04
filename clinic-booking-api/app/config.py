@@ -8,11 +8,15 @@ DEFAULT_PAGE_SIZE = 10
 MAX_PAGE_SIZE = 100
 MAX_PAGE_NUMBER = 1_000_000
 
+# Creating bookings per minute per API key + client address (R11, D14).
+DEFAULT_RATE_LIMIT_PER_MINUTE = 10
+
 
 @dataclass(frozen=True)
 class Settings:
     database_url: str
     api_key: str
+    rate_limit_per_minute: int = DEFAULT_RATE_LIMIT_PER_MINUTE
 
 
 def load_settings() -> Settings:
@@ -24,7 +28,21 @@ def load_settings() -> Settings:
     ]
     if missing:
         raise RuntimeError("Missing required environment variables: " + ", ".join(missing))
-    return Settings(database_url=database_url, api_key=api_key)
+    return Settings(
+        database_url=database_url,
+        api_key=api_key,
+        rate_limit_per_minute=_rate_limit_from_env(),
+    )
+
+
+def _rate_limit_from_env() -> int:
+    """RATE_LIMIT_PER_MINUTE, or 10 when unset. Anything but a whole number of 1+ is an error."""
+    raw = os.environ.get("RATE_LIMIT_PER_MINUTE", "").strip()
+    if not raw:
+        return DEFAULT_RATE_LIMIT_PER_MINUTE
+    if not raw.isdecimal() or int(raw) < 1:
+        raise RuntimeError("RATE_LIMIT_PER_MINUTE must be a whole number of 1 or more")
+    return int(raw)
 
 
 def cors_origins_from_env() -> list[str]:
