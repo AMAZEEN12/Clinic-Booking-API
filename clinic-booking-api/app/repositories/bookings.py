@@ -15,9 +15,7 @@ def insert(conn: Connection, booking_id: str, slot_id: str, name: str, email: st
 
 
 def get(conn: Connection, booking_id: str) -> dict | None:
-    return conn.execute(
-        f"SELECT {_COLUMNS} FROM bookings WHERE id = %s", (booking_id,)
-    ).fetchone()
+    return conn.execute(f"SELECT {_COLUMNS} FROM bookings WHERE id = %s", (booking_id,)).fetchone()
 
 
 def cancel(conn: Connection, booking_id: str) -> dict | None:
