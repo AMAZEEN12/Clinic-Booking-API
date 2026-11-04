@@ -10,10 +10,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import db
 from app.config import cors_origins_from_env, load_settings
 from app.errors import install_error_handlers
+from app.logsafe import hide_query_strings
 from app.routers import bookings, health, reset, slots
 from app.security import api_key_middleware
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+hide_query_strings()
 
 
 @asynccontextmanager
