@@ -35,7 +35,7 @@ export function Shell() {
 
             <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)]">
                 <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-6">
-                    <p className="font-heading text-xl font-extrabold">Demo clinic</p>
+                    <p className="font-heading text-xl font-extrabold">Bee Clinic</p>
                     <nav aria-label="Main" className="flex gap-1">
                         <NavItem to={routes.book}>Book</NavItem>
                         <NavItem to={routes.find}>Find a booking</NavItem>
