@@ -1,7 +1,8 @@
 import pytest
+from starlette.requests import Request
 
 from app.config import load_settings
-from app.ratelimit import SlidingWindowLimiter
+from app.ratelimit import SlidingWindowLimiter, client_ip
 from tests.conftest import API_KEY
 from tests.helpers import new_booking, run_together, slot
 
@@ -42,9 +43,14 @@ def _post(client, api_headers, email="ada@example.com", headers=None, body=None)
     return client.post("/bookings", json=body, headers={**api_headers, **(headers or {})})
 
 
-def _use_up_the_limit(client, api_headers, email="ada@example.com"):
+def _from_ip(address):
+    """Headers that make a request look as if it came from this client address (via the proxy)."""
+    return {"X-Forwarded-For": address}
+
+
+def _use_up_the_limit(client, api_headers, email="ada@example.com", headers=None):
     for _ in range(LIMIT):
-        assert _post(client, api_headers, email=email).status_code != 429
+        assert _post(client, api_headers, email=email, headers=headers).status_code != 429
 
 
 # --- The basic rule -----------------------------------------------------------------------
@@ -118,28 +124,51 @@ def test_simultaneous_attempts_are_counted_exactly(client, api_headers, limited)
 # --- Who and what is limited -----------------------------------------------------------
 
 
-def test_each_email_has_its_own_limit(client, api_headers, limited):
+def test_each_ip_address_has_its_own_limit(client, api_headers, limited):
+    _use_up_the_limit(client, api_headers, headers=_from_ip("203.0.113.10"))
+    assert _post(client, api_headers, headers=_from_ip("203.0.113.10")).status_code == 429
+    assert _post(client, api_headers, headers=_from_ip("203.0.113.11")).status_code != 429
+
+
+def test_changing_the_email_does_not_avoid_the_limit(client, api_headers, limited):
     _use_up_the_limit(client, api_headers, email="ada@example.com")
-    assert _post(client, api_headers, email="ada@example.com").status_code == 429
-    assert _post(client, api_headers, email="bola@example.com").status_code != 429
+    for email in ("bola@example.com", "chidi@example.com", "  ADA@Example.COM "):
+        assert _post(client, api_headers, email=email).status_code == 429
 
 
-def test_the_email_is_matched_ignoring_capitals_and_spaces(client, api_headers, limited):
-    _use_up_the_limit(client, api_headers, email="ada@example.com")
-    assert _post(client, api_headers, email="  ADA@Example.COM ").status_code == 429
+def test_the_limit_is_shared_by_every_email_from_one_ip(client, api_headers, limited):
+    for number in range(LIMIT):
+        email = f"person{number}@example.com"
+        assert _post(client, api_headers, email=email).status_code != 429
+    assert _post(client, api_headers, email="another@example.com").status_code == 429
 
 
-def test_the_client_address_does_not_matter(client, api_headers, limited):
-    _use_up_the_limit(client, api_headers)
-    other = _post(client, api_headers, headers={"X-Forwarded-For": "198.51.100.9"})
-    assert other.status_code == 429
+def test_the_original_client_in_x_forwarded_for_is_the_one_limited(client, api_headers, limited):
+    chain = _from_ip("203.0.113.20, 10.0.0.1, 10.0.0.2")  # client, then the proxies it went through
+    _use_up_the_limit(client, api_headers, headers=chain)
+    assert _post(client, api_headers, headers=chain).status_code == 429
+    # A different client behind the same proxy is not affected.
+    assert _post(client, api_headers, headers=_from_ip("203.0.113.21, 10.0.0.1")).status_code != 429
 
 
-def test_a_body_without_a_usable_email_is_not_counted(client, api_headers, limited):
-    for body in ({}, {"slot_id": "s1"}, {"email": "nope"}, {"email": 5}, [1]):
-        for _ in range(LIMIT + 1):
-            assert _post(client, api_headers, body=body).status_code == 400
-    _use_up_the_limit(client, api_headers)  # nothing above used up anyone's allowance
+def test_the_same_address_written_differently_is_one_client(client, api_headers, limited):
+    _use_up_the_limit(client, api_headers, headers=_from_ip("2001:db8:0:0:0:0:0:1"))
+    assert _post(client, api_headers, headers=_from_ip("2001:DB8::1")).status_code == 429
+
+
+def test_a_body_without_an_email_still_counts(client, api_headers, limited):
+    for _ in range(LIMIT):
+        assert _post(client, api_headers, body={}).status_code == 400
+    assert _post(client, api_headers).status_code == 429
+
+
+def test_an_unreadable_body_still_counts(client, api_headers, limited):
+    for _ in range(LIMIT):
+        response = client.post(
+            "/bookings", content=b"not json", headers={**api_headers, "Content-Type": "application/json"}
+        )
+        assert response.status_code == 400
+    assert _post(client, api_headers).status_code == 429
 
 
 def test_a_wrong_key_is_refused_before_it_is_counted(client, api_headers, limited):
@@ -185,7 +214,26 @@ def test_the_refusal_can_be_read_by_the_web_page(client, api_headers, limited):
 # --- The limiter on its own, and its setting ----------------------------------------------
 
 
-def test_idle_emails_are_forgotten():
+def _request(forwarded=None, peer="192.0.2.50"):
+    headers = [(b"x-forwarded-for", forwarded.encode())] if forwarded is not None else []
+    return Request({"type": "http", "headers": headers, "client": (peer, 5000)})
+
+
+def test_the_client_is_the_first_forwarded_address():
+    assert client_ip(_request("203.0.113.5, 10.1.1.1")) == "203.0.113.5"
+    assert client_ip(_request("  203.0.113.5  ")) == "203.0.113.5"
+
+
+def test_with_no_forwarded_header_the_direct_address_is_used():
+    assert client_ip(_request()) == "192.0.2.50"
+
+
+@pytest.mark.parametrize("junk", ["", "unknown", "not-an-ip", "999.1.1.1", ",203.0.113.5"])
+def test_a_forwarded_value_that_is_not_an_ip_is_ignored(junk):
+    assert client_ip(_request(junk)) == "192.0.2.50"
+
+
+def test_idle_addresses_are_forgotten():
     clock = FakeClock()
     limiter = SlidingWindowLimiter(LIMIT, clock=clock)
     for number in range(2000):

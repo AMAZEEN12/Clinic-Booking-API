@@ -1,14 +1,18 @@
-"""Limit on booking attempts (Level 5, R11): at most N per email per minute.
+"""Limit on booking attempts (Level 5, R11): at most N per client IP address per minute.
 
-A sliding window: an attempt is allowed when fewer than N attempts from that email happened in
-the last 60 seconds. Failed attempts (400, 404, 409 ...) count too; refused ones (429) do not,
+A sliding window: an attempt is allowed when fewer than N attempts from that IP address happened
+in the last 60 seconds. Failed attempts (400, 404, 409 ...) count too; refused ones (429) do not,
 so waiting the time in Retry-After is always enough.
 
 Everything is kept in memory, so the limit is per process: run exactly one worker (C4).
-Only a one-way hash of the email is kept (N4).
+Only a one-way hash of the IP address is kept (N4).
+
+Behind Render's proxy the TCP peer is the proxy, so the real client is read from the first
+address in X-Forwarded-For; with no usable header the direct peer address is used.
 """
 
 import hashlib
+import ipaddress
 import math
 import threading
 import time
@@ -18,11 +22,10 @@ from collections.abc import Callable
 from fastapi import Request
 
 from app.errors import TooManyRequestsError
-from app.schemas import normalize_email
 
 WINDOW_SECONDS = 60.0
 
-# Once this many emails are tracked, the ones with no attempt in the last window are dropped,
+# Once this many IP addresses are tracked, the ones with no attempt in the last window are dropped,
 # which keeps memory from growing.
 _SWEEP_ABOVE = 1024
 
@@ -69,21 +72,29 @@ class SlidingWindowLimiter:
                 del self._attempts[client]
 
 
+def client_ip(request: Request) -> str:
+    """The address the request came from.
+
+    The first valid address in X-Forwarded-For is the original client when the request came
+    through a proxy such as Render's. Anything that is not an IP address is ignored, and the
+    direct peer address is used instead.
+    """
+    forwarded = request.headers.get("x-forwarded-for", "")
+    first = forwarded.split(",")[0].strip()
+    try:
+        return str(ipaddress.ip_address(first))
+    except ValueError:
+        pass
+    return request.client.host if request.client else "unknown"
+
+
 async def enforce_booking_rate_limit(request: Request) -> None:
     """Dependency for POST /bookings: refuse the attempt after the limit, before validation.
 
-    It runs after the API key check (a wrong key is a 401 and is never counted). A body with no
-    usable email cannot be tied to anyone, so it is not counted.
+    It runs after the API key check (a wrong key is a 401 and is never counted). Every attempt
+    from an IP address counts, whatever is in the body, because the limit no longer depends on it.
     """
-    try:
-        payload = await request.json()
-    except ValueError:
-        return
-    raw = payload.get("email") if isinstance(payload, dict) else None
-    email = normalize_email(raw) if isinstance(raw, str) else None
-    if email is None:
-        return
-    client = hashlib.sha256(email.encode()).hexdigest()
+    client = hashlib.sha256(client_ip(request).encode()).hexdigest()
     wait = request.app.state.rate_limiter.check(client)
     if wait:
         raise TooManyRequestsError("too many requests", headers={"Retry-After": str(wait)})

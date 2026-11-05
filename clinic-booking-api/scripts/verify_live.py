@@ -15,6 +15,7 @@ Uses only the Python standard library. Exit code 0 = every check passed, 1 = som
 # fmt: off
 
 import argparse
+import itertools
 import json
 import os
 import subprocess
@@ -30,11 +31,17 @@ TIMEOUT = 90  # a sleeping free host can take about a minute to wake up
 results: list[tuple[bool, str, str]] = []
 BASE = ""
 KEY = ""
+_client_numbers = itertools.count(1)
 
 
 def call(method, path, body=None, headers=None, key=True):
     """One request. Returns (status, parsed JSON or None, response headers)."""
     sent = {"Content-Type": "application/json", **(headers or {})}
+    # The booking limit is per client IP, and every request here comes from this one machine. So
+    # each request claims a different client address (X-Forwarded-For), except in level 5, which
+    # pins one address on purpose to test the limit itself.
+    if "X-Forwarded-For" not in sent:
+        sent["X-Forwarded-For"] = f"2001:db8:1::{next(_client_numbers):x}"
     if key:
         sent["X-API-Key"] = KEY
     data = None if body is None else json.dumps(body).encode()
@@ -76,8 +83,8 @@ def slot(slot_id, days_ahead=30, hour=9, provider="Dr Ade"):
     }
 
 
-def book(slot_id, email, name="Test Patient", key=None):
-    headers = {"Idempotency-Key": key} if key else None
+def book(slot_id, email, name="Test Patient", key=None, headers=None):
+    headers = {**(headers or {}), **({"Idempotency-Key": key} if key else {})}
     return call("POST", "/bookings", {"slot_id": slot_id, "name": name, "email": email}, headers)
 
 
@@ -249,18 +256,19 @@ def level_4(tag):
 
 
 def level_5(tag):
-    section("Level 5: rate limit (5 attempts per email per minute)")
-    email = f"spam.{tag}@example.com"
-    statuses = [book("no-such-slot", email)[0] for _ in range(5)]
-    check("attempts 1-5 are not limited (failed ones count too)", 429 not in statuses, str(statuses))
-    status, body, headers = book("no-such-slot", email)
-    check("6th attempt is 429", status == 429, f"got {status}")
+    section("Level 5: rate limit (5 attempts per client IP per minute)")
+    ip = {"X-Forwarded-For": f"2001:db8:5::{tag[:4]}:{tag[4:]}"}
+    other_ip = {"X-Forwarded-For": f"2001:db8:6::{tag[:4]}:{tag[4:]}"}
+    statuses = [book("no-such-slot", f"spam{n}.{tag}@example.com", headers=ip)[0] for n in range(5)]
+    check("attempts 1-5 from one IP are not limited (failed ones count too)", 429 not in statuses, str(statuses))
+    status, body, headers = book("no-such-slot", f"spam.{tag}@example.com", headers=ip)
+    check("6th attempt from the same IP is 429, even with a new email", status == 429, f"got {status}")
     retry = headers.get("retry-after", "")
     check("Retry-After is whole seconds", retry.isdigit() and int(retry) >= 1, f"Retry-After: {retry!r}")
     check("429 body is {'error': ...}", "error" in (body or {}))
-    status, _, _ = book("no-such-slot", f"other.{tag}@example.com")
-    check("another email is not affected", status != 429, f"got {status}")
-    status, _, _ = call("POST", "/bookings", {"slot_id": "s1", "name": "A", "email": email}, key=False)
+    status, _, _ = book("no-such-slot", f"spam0.{tag}@example.com", headers=other_ip)
+    check("another IP is not affected", status != 429, f"got {status}")
+    status, _, _ = call("POST", "/bookings", {"slot_id": "s1", "name": "A", "email": f"spam.{tag}@example.com"}, headers=ip, key=False)
     check("wrong/missing key is still 401 when limited", status == 401, f"got {status}")
 
 

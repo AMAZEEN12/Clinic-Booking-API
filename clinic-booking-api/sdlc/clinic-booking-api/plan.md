@@ -17,7 +17,7 @@ Source paths below are under `app/` unless they start with `tests/`, `migrations
 | `db.py` (connection pool, migration runner) | new | R7, N2, N3 |
 | `migrations/V1__schema.sql` (slots, bookings + partial unique index, idempotency_keys, payments) | new | R7, N2, N3 |
 | `security.py` (API key check, constant-time compare; `/health`, `/config.js` and static files exempt) | new | R5, N1 |
-| `ratelimit.py` (in-memory window per key + IP, limits from config) | new | R11 |
+| `ratelimit.py` (in-memory sliding window per client IP, limit from config) | new | R11 |
 | `errors.py` (exception types and handlers that return `{"error": ...}`) | new | R6, R14, N8 |
 | `schemas.py` (Pydantic models: Slot, SlotWithAvailability, NewBooking, Booking, ResetRequest, PageResponse, Payment, DashboardSummary, DashboardAppointment) | new | R1-R4, R10, R13, R15, R16 |
 | `routers/slots.py`, `routers/reset.py` | new | R1, R2 |
@@ -46,7 +46,7 @@ Source paths below are under `app/` unless they start with `tests/`, `migrations
 7. Cancel booking; cancelled slot can be rebooked. (covers R8)
 8. Idempotency: header key (advisory lock per key) plus natural dedupe on slot+email. (covers R9)
 9. Paging by email. (covers R10)
-10. Rate limiter on POST /bookings (in-memory window per key+IP, limits from config). (covers R11)
+10. Rate limiter on POST /bookings (in-memory sliding window per client IP, read from `X-Forwarded-For` behind Render's proxy; limit from config). (covers R11)
 11. Audit lines and log-privacy test. (covers N4, N5)
 12. Web page: add CORS to the API first; copy the ClinicFlow template into `web/`, delete the staff, queue, walk-in and tracking parts, rewire it to the Koya contract. (covers R12, N7)
 13. Checkpoint: Levels 1-5 green end to end. Only then start extras (D6).
@@ -96,7 +96,7 @@ Source paths below are under `app/` unless they start with `tests/`, `migrations
 | R8 | `tests/test_cancel_api.py` (cancel, rebook, double cancel, unknown id) |
 | R9 | `tests/test_idempotency_api.py` (same key, no key, different body, parallel same key) |
 | R10 | `tests/test_paging_api.py` (page through all items once, limits, missing email) |
-| R11 | `tests/test_rate_limit_api.py` (11th request returns 429 with Retry-After) |
+| R11 | `tests/test_rate_limit_api.py` (6th request from one IP returns 429 with Retry-After; another IP is not affected) |
 | R12, N7 | `web/e2e` Playwright happy path at phone and desktop widths, Vitest tests for the form and API mapping, plus a manual checklist on the deployed URL (design match, keyboard, contrast, phone and desktop width) |
 | R13 | `tests/test_payment_api.py` (pay, pay cancelled returns 409, core schema unchanged) |
 | R14, N8 | `tests/test_error_format_api.py` (every non-2xx has a string `error`, no stack traces) |

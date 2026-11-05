@@ -7,7 +7,7 @@ from dataclasses import dataclass
 DEFAULT_PAGE_SIZE = 10
 MAX_PAGE_SIZE = 50
 
-# Booking attempts per email per minute (Level 5, R11).
+# Booking attempts per client IP address per minute (Level 5, R11).
 DEFAULT_RATE_LIMIT_PER_MINUTE = 5
 
 
