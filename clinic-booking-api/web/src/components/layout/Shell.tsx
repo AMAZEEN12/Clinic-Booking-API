@@ -39,7 +39,6 @@ export function Shell() {
                     <nav aria-label="Main" className="flex gap-1">
                         <NavItem to={routes.book}>Book</NavItem>
                         <NavItem to={routes.find}>Find a booking</NavItem>
-                        <NavItem to={routes.find}>Find a booking</NavItem>
                         <NavItem to={routes.dashboard}>Dashboard</NavItem>
                     </nav>
                 </div>
