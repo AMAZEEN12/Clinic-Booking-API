@@ -7,6 +7,14 @@ describe("describeError", () => {
         expect(describeError(new ApiError("conflict", 409, "x"), "book")).toMatch(/just taken/)
     })
 
+    it("tells the patient a cancelled booking cannot be paid", () => {
+        expect(describeError(new ApiError("conflict", 409, "x"), "pay")).toMatch(/cancelled.*can't be paid/)
+    })
+
+    it("says a booking to pay was not found", () => {
+        expect(describeError(new ApiError("not_found", 404, "x"), "pay")).toMatch(/booking with that ID/)
+    })
+
     it("includes the wait time for rate limits", () => {
         expect(describeError(new ApiError("rate_limited", 429, "x", 6), "book")).toMatch(/6 seconds/)
     })

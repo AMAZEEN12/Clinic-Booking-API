@@ -1,13 +1,14 @@
 import { useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { AppointmentSummary } from "@/components/booking/AppointmentSummary"
+import { PaymentBadge } from "@/components/shared/payment-badge"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
 import { Panel } from "@/components/ui/panel"
 import { useAsync } from "@/hooks/useAsync"
 import { usePageTitle } from "@/hooks/usePageTitle"
-import { ApiError, cancelBooking, getBooking, getSlots } from "@/services/api"
+import { ApiError, cancelBooking, getBooking, getPayment, getSlots, payForBooking } from "@/services/api"
 import { describeError } from "@/utils/messages"
 import { routes } from "@/utils/routes"
 
@@ -16,11 +17,15 @@ export function BookingPage() {
     const { id = "" } = useParams()
     const booking = useAsync(() => getBooking(id), `booking:${id}`)
     const slots = useAsync(getSlots, "slots")
+    const payment = useAsync(() => getPayment(id), `payment:${id}`)
 
     const [confirmingCancel, setConfirmingCancel] = useState(false)
     const [cancelling, setCancelling] = useState(false)
     const [cancelError, setCancelError] = useState<string | null>(null)
     const [cancelledNow, setCancelledNow] = useState(false)
+    const [paying, setPaying] = useState(false)
+    const [payError, setPayError] = useState<string | null>(null)
+    const [paidNow, setPaidNow] = useState(false)
 
     const data = booking.state.status === "ready" ? booking.state.data : null
     usePageTitle(data?.status === "cancelled" ? "Booking cancelled" : "Your booking")
@@ -36,6 +41,21 @@ export function BookingPage() {
             setCancelError(describeError(error, "cancel"))
         } finally {
             setCancelling(false)
+        }
+    }
+
+    async function handlePay() {
+        setPaying(true)
+        setPayError(null)
+        try {
+            payment.setData(await payForBooking(id))
+            setPaidNow(true)
+        } catch (error) {
+            setPayError(describeError(error, "pay"))
+            // A conflict means the booking was cancelled somewhere else: show it as it is now.
+            if (error instanceof ApiError && error.kind === "conflict") booking.refresh()
+        } finally {
+            setPaying(false)
         }
     }
 
@@ -71,6 +91,7 @@ export function BookingPage() {
     const slot =
         slots.state.status === "ready" ? (slots.state.data.find((s) => s.id === current.slot_id) ?? null) : null
     const confirmed = current.status === "confirmed"
+    const paid = payment.state.status === "ready" && payment.state.data.status === "paid"
 
     return (
         <div className="mx-auto max-w-2xl space-y-6">
@@ -81,8 +102,13 @@ export function BookingPage() {
                 <StatusBadge status={current.status} />
             </div>
 
-            {/* Announced to screen readers when the cancel finishes. */}
+            {/* Announced to screen readers when the cancel or the payment finishes. */}
             <div role="status">
+                {paidNow && (
+                    <p className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 font-medium">
+                        Payment recorded. This is a demo: no real money was taken.
+                    </p>
+                )}
                 {cancelledNow && (
                     <p className="rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 font-medium">
                         Your booking has been cancelled. The time is free for other patients.
@@ -119,6 +145,50 @@ export function BookingPage() {
                     </p>
                 )}
             </Panel>
+
+            {(confirmed || paid) && (
+                <Panel className="space-y-4">
+                    <h2 className="font-heading text-xl font-bold">Payment</h2>
+                    {payment.state.status === "loading" && (
+                        <p role="status" className="text-[var(--color-text-muted)]">
+                            Checking payment…
+                        </p>
+                    )}
+                    {payment.state.status === "error" && (
+                        <>
+                            <p className="text-[var(--color-text-muted)]">We couldn't check the payment status.</p>
+                            <Button variant="secondary" onClick={payment.reload}>
+                                Try again
+                            </Button>
+                        </>
+                    )}
+                    {payment.state.status === "ready" && payment.state.data.status === "paid" && (
+                        <div className="space-y-2">
+                            <PaymentBadge status="paid" />
+                            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+                                <dt className="text-[var(--color-text-muted)]">Reference</dt>
+                                <dd className="break-all font-mono font-medium">{payment.state.data.reference}</dd>
+                            </dl>
+                        </div>
+                    )}
+                    {payment.state.status === "ready" && payment.state.data.status === "unpaid" && confirmed && (
+                        <>
+                            <p className="text-[var(--color-text-muted)]">
+                                This is a demo. No real money is taken and you don't enter any card details.
+                            </p>
+                            <Button loading={paying} onClick={handlePay}>
+                                Pay now (demo)
+                            </Button>
+                        </>
+                    )}
+                    {payError && (
+                        <p role="alert" className="text-sm font-medium text-[var(--color-danger)]">
+                            <span aria-hidden="true">! </span>
+                            {payError}
+                        </p>
+                    )}
+                </Panel>
+            )}
 
             {confirmed && (
                 <Panel className="space-y-4">

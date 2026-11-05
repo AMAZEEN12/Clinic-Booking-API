@@ -2,7 +2,7 @@
 
 import { ApiError } from "@/services/api"
 
-export type Action = "load" | "book" | "lookup" | "cancel"
+export type Action = "load" | "book" | "lookup" | "cancel" | "pay"
 
 export function describeError(error: unknown, action: Action): string {
     if (!(error instanceof ApiError)) return "Something went wrong. Please try again."
@@ -17,13 +17,13 @@ export function describeError(error: unknown, action: Action): string {
                 ? `Too many attempts. Please wait ${error.retryAfterSeconds} seconds and try again.`
                 : "Too many attempts. Please wait a moment and try again."
         case "not_found":
-            return action === "lookup" || action === "cancel"
+            return action === "lookup" || action === "cancel" || action === "pay"
                 ? "We couldn't find a booking with that ID. Check it and try again."
                 : "We couldn't find what you were looking for."
         case "conflict":
-            return action === "book"
-                ? "That time was just taken. Please choose another time."
-                : "That booking can't be changed any more."
+            if (action === "book") return "That time was just taken. Please choose another time."
+            if (action === "pay") return "This booking has been cancelled, so it can't be paid."
+            return "That booking can't be changed any more."
         case "invalid":
             return "Please check your details and try again."
         default:

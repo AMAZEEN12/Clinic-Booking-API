@@ -1,7 +1,7 @@
 // The only place that talks to the clinic booking API (see clinic-booking-api/app/routers).
 // Every failure becomes an ApiError with a `kind`, so screens never look at raw status codes.
 
-import type { Booking, CreateBookingArgs, Slot } from "@/models"
+import type { Booking, CreateBookingArgs, Payment, Slot } from "@/models"
 import { env } from "@/utils/env"
 
 export type ApiErrorKind =
@@ -118,4 +118,13 @@ export function getBooking(id: string): Promise<Booking> {
 
 export function cancelBooking(id: string): Promise<Booking> {
     return request<Booking>(`/bookings/${encodeURIComponent(id)}`, { method: "DELETE" })
+}
+
+export function getPayment(id: string): Promise<Payment> {
+    return request<Payment>(`/bookings/${encodeURIComponent(id)}/payment`)
+}
+
+/** Demo payment: sends no body, so no card details can ever leave the page. */
+export function payForBooking(id: string): Promise<Payment> {
+    return request<Payment>(`/bookings/${encodeURIComponent(id)}/payment`, { method: "POST" })
 }

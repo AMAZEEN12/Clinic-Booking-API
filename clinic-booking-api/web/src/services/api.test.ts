@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { ApiError, cancelBooking, createBooking, getBooking, getSlots, kindForStatus } from "./api"
+import { ApiError, cancelBooking, createBooking, getBooking, getPayment, getSlots, kindForStatus, payForBooking } from "./api"
 
 vi.mock("@/utils/env", () => ({ env: { apiBaseUrl: "https://api.example.test", apiKey: "test-key" } }))
 
@@ -96,6 +96,45 @@ describe("getBooking and cancelBooking", () => {
         expect(init.method).toBe("DELETE")
         expect(init.body).toBeUndefined()
         expect(headers["Content-Type"]).toBeUndefined()
+    })
+})
+
+describe("getPayment and payForBooking", () => {
+    const paid = { booking_id: "bk_1", status: "paid", reference: "DEMO-1A2B3C4D5E", paid_at: "2026-12-01T10:00:00Z" }
+
+    it("reads the payment with GET", async () => {
+        const unpaid = { booking_id: "bk_1", status: "unpaid", reference: null, paid_at: null }
+        const fetchMock = stubFetch(reply(200, unpaid))
+
+        await expect(getPayment("bk_1")).resolves.toEqual(unpaid)
+
+        const { url, init, headers } = lastCall(fetchMock)
+        expect(url).toBe("https://api.example.test/bookings/bk_1/payment")
+        expect(init.method).toBe("GET")
+        expect(headers["X-API-Key"]).toBe("test-key")
+    })
+
+    it("pays with POST and sends no body, so no card details can be sent", async () => {
+        const fetchMock = stubFetch(reply(200, paid))
+
+        await expect(payForBooking("bk_1")).resolves.toEqual(paid)
+
+        const { url, init, headers } = lastCall(fetchMock)
+        expect(url).toBe("https://api.example.test/bookings/bk_1/payment")
+        expect(init.method).toBe("POST")
+        expect(init.body).toBeUndefined()
+        expect(headers["Content-Type"]).toBeUndefined()
+    })
+
+    it("escapes the id in the path", async () => {
+        const fetchMock = stubFetch(reply(200, paid))
+        await payForBooking("a/b c")
+        expect(lastCall(fetchMock).url).toBe("https://api.example.test/bookings/a%2Fb%20c/payment")
+    })
+
+    it("turns paying a cancelled booking into a conflict error", async () => {
+        stubFetch(reply(409, { error: "booking is cancelled" }))
+        await expect(payForBooking("bk_1")).rejects.toMatchObject({ kind: "conflict", status: 409 })
     })
 })
 

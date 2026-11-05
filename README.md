@@ -28,6 +28,8 @@ Every endpoint except `/health` needs the header `X-API-Key`. Every error is `{"
 | `GET /bookings/{id}` | One booking | 200, 404 |
 | `GET /bookings?email=&page=&limit=` | A person's bookings, newest first: `{items, page, limit, total}` | 200, 400 |
 | `DELETE /bookings/{id}` | Cancel a booking; the slot can be booked again | 200, 404 |
+| `POST /bookings/{id}/payment` | Extra: pretend to pay for a confirmed booking (demo, no money, no body) | 200 `{booking_id, status, reference, paid_at}`, 404, 409 (cancelled) |
+| `GET /bookings/{id}/payment` | Extra: payment state, `paid` or `unpaid` | 200, 404 |
 | `GET /health` | Public. `{"status":"ok"}` after a database check | 200, 503 |
 
 Interactive docs are at `/docs`.
@@ -101,7 +103,7 @@ The full list is in `clinic-booking-api/sdlc/clinic-booking-api/WORKLOG.md`. The
 ## Known limits
 
 - Free hosting: cold starts after idle time, and a small database.
-- Not built: simulated payment and the clinic dashboard (planned extras).
+- Extras: the simulated payment endpoints are built (see the table above); the clinic dashboard is not built yet.
 - The rate limit applies to every client, so a tool that books many slots in under a minute gets 429.
 
 ## Project layout

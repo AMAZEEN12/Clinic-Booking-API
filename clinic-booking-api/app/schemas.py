@@ -75,6 +75,23 @@ class Booking(BaseModel):
         return _to_utc(value)
 
 
+class Payment(BaseModel):
+    """The simulated payment state of one booking (R13). Kept apart from Booking on purpose (D6).
+
+    `unpaid` has no stored row: it is what a booking with no payment looks like.
+    """
+
+    booking_id: str
+    status: Literal["unpaid", "paid"]
+    reference: str | None = None
+    paid_at: datetime | None = None
+
+    @field_validator("paid_at")
+    @classmethod
+    def _paid_at_utc(cls, value: datetime | None) -> datetime | None:
+        return None if value is None else _to_utc(value)
+
+
 class PageResponse(BaseModel):
     """One page of a person's bookings, newest first (R10)."""
 
