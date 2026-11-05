@@ -16,3 +16,4 @@ venv/
 .env
 .env.*
 *.pem
+!.env.example
