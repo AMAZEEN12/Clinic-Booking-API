@@ -14,10 +14,12 @@ MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations"
 # Arbitrary constant: stops two app instances from running migrations at the same moment.
 _MIGRATION_LOCK_ID = 727_274
 
+POOL_MAX_SIZE = 5
+
 _pool: ConnectionPool | None = None
 
 
-def init_pool(database_url: str, max_size: int = 5) -> ConnectionPool:
+def init_pool(database_url: str, max_size: int = POOL_MAX_SIZE) -> ConnectionPool:
     """Open the shared connection pool (D39: small pool, max 5). Rows come back as dicts."""
     global _pool
     _pool = ConnectionPool(
@@ -25,6 +27,10 @@ def init_pool(database_url: str, max_size: int = 5) -> ConnectionPool:
         min_size=1,
         max_size=max_size,
         kwargs={"row_factory": dict_row},
+        # Test a connection before handing it out and replace it if the server closed it.
+        # Neon closes idle connections when its compute sleeps, so without this the first
+        # request after a quiet spell would fail.
+        check=ConnectionPool.check_connection,
         open=False,
     )
     _pool.open(wait=True, timeout=30)
