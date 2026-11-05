@@ -12,9 +12,10 @@ from app.schemas import Slot, SlotWithAvailability
 _SLOT_LIST = TypeAdapter(list[Slot])
 
 
-def list_slots() -> list[SlotWithAvailability]:
+def list_slots(provider: str | None = None) -> list[SlotWithAvailability]:
+    """Every slot, earliest first; with `provider`, only that provider's (exact match)."""
     with db.get_pool().connection() as conn:
-        rows = slot_repository.list_with_availability(conn)
+        rows = slot_repository.list_with_availability(conn, provider)
     return [
         SlotWithAvailability(
             id=row["id"],

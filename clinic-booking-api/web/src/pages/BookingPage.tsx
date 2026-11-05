@@ -39,6 +39,8 @@ export function BookingPage() {
             setConfirmingCancel(false)
         } catch (error) {
             setCancelError(describeError(error, "cancel"))
+            // A conflict means it was already cancelled (for example in another tab): show it as it is now.
+            if (error instanceof ApiError && error.kind === "conflict") booking.refresh()
         } finally {
             setCancelling(false)
         }

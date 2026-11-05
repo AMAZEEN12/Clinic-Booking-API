@@ -50,3 +50,20 @@ def test_booked_slot_is_unavailable_until_cancelled(
 
     available = {i["id"]: i["available"] for i in client.get("/slots", headers=api_headers).json()}
     assert available == {"s1": True, "s2": True}
+
+
+def test_slots_can_be_filtered_by_provider(client, api_headers, reset_slots):
+    reset_slots([slot("a1"), slot("b1", provider="Dr Bisi", hour=10), slot("a2", hour=11)])
+    response = client.get("/slots", params={"provider": "Dr Ade"}, headers=api_headers)
+    assert response.status_code == 200
+    assert [item["id"] for item in response.json()] == ["a1", "a2"]
+
+
+def test_the_provider_filter_is_an_exact_match(client, api_headers, reset_slots):
+    reset_slots([slot("a1")])
+    for provider in ("dr ade", "Dr", "Dr Ade "):
+        response = client.get("/slots", params={"provider": provider}, headers=api_headers)
+        assert response.json() == []
+    unknown = client.get("/slots", params={"provider": "Nobody"}, headers=api_headers)
+    assert unknown.status_code == 200
+    assert unknown.json() == []

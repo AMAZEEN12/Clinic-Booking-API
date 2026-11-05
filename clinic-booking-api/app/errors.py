@@ -42,6 +42,11 @@ class ConflictError(AppError):
     default_message = "conflict"
 
 
+class UnprocessableError(AppError):
+    status_code = 422
+    default_message = "unprocessable request"
+
+
 class TooManyRequestsError(AppError):
     status_code = 429
     default_message = "too many requests"

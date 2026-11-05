@@ -1,84 +1,89 @@
-"""Limit on creating bookings (R11, D14): a token bucket per API key + client address.
+"""Limit on booking attempts (Level 5, R11): at most N per email per minute.
+
+A sliding window: an attempt is allowed when fewer than N attempts from that email happened in
+the last 60 seconds. Failed attempts (400, 404, 409 ...) count too; refused ones (429) do not,
+so waiting the time in Retry-After is always enough.
 
 Everything is kept in memory, so the limit is per process: run exactly one worker (C4).
-Nothing here stores the key or the address itself, only a one-way hash of the pair (N4).
+Only a one-way hash of the email is kept (N4).
 """
 
 import hashlib
 import math
 import threading
 import time
-from collections.abc import Awaitable, Callable
+from collections import deque
+from collections.abc import Callable
 
-from fastapi import Request, Response
+from fastapi import Request
 
-from app.errors import error_response
-from app.security import API_KEY_HEADER
+from app.errors import TooManyRequestsError
+from app.schemas import normalize_email
 
-# Once this many clients are tracked, the ones who have earned their full allowance back
-# (so tracking them tells us nothing) are dropped, which keeps memory from growing.
+WINDOW_SECONDS = 60.0
+
+# Once this many emails are tracked, the ones with no attempt in the last window are dropped,
+# which keeps memory from growing.
 _SWEEP_ABOVE = 1024
 
 
-class TokenBucketLimiter:
-    """Each client has a bucket that holds up to `limit_per_minute` tokens and refills evenly.
-
-    A request spends one token. A client who has been quiet for a minute is back to a full
-    bucket; one who spams runs dry and is told how many seconds until the next token.
-    """
-
-    def __init__(self, limit_per_minute: int, clock: Callable[[], float] = time.monotonic):
-        self._capacity = float(limit_per_minute)
-        self._seconds_per_token = 60.0 / limit_per_minute
+class SlidingWindowLimiter:
+    def __init__(
+        self,
+        limit_per_minute: int,
+        clock: Callable[[], float] = time.monotonic,
+        window: float = WINDOW_SECONDS,
+    ):
+        self._limit = limit_per_minute
+        self._window = window
         self._clock = clock
-        self._buckets: dict[str, tuple[float, float]] = {}  # client -> (tokens, last seen)
+        self._attempts: dict[str, deque[float]] = {}
         self._lock = threading.Lock()
 
     def check(self, client: str) -> int:
-        """Spend one token. Returns 0 when allowed, otherwise the seconds to wait (at least 1)."""
+        """Record one attempt. Returns 0 when allowed, otherwise the whole seconds to wait."""
         with self._lock:
             now = self._clock()
-            if len(self._buckets) > _SWEEP_ABOVE:
+            if len(self._attempts) > _SWEEP_ABOVE:
                 self._forget_idle(now)
-            tokens, last = self._buckets.get(client, (self._capacity, now))
-            tokens = min(self._capacity, tokens + (now - last) / self._seconds_per_token)
-            if tokens >= 1:
-                self._buckets[client] = (tokens - 1, now)
-                return 0
-            self._buckets[client] = (tokens, now)
-            return max(1, math.ceil((1 - tokens) * self._seconds_per_token))
+            times = self._attempts.setdefault(client, deque())
+            while times and now - times[0] >= self._window:
+                times.popleft()
+            if len(times) >= self._limit:
+                return max(1, math.ceil(times[0] + self._window - now))
+            times.append(now)
+            return 0
+
+    def reset(self) -> None:
+        """Forget every attempt (used by POST /reset)."""
+        with self._lock:
+            self._attempts.clear()
 
     def tracked_clients(self) -> int:
         with self._lock:
-            return len(self._buckets)
+            return len(self._attempts)
 
     def _forget_idle(self, now: float) -> None:
-        for client, (tokens, last) in list(self._buckets.items()):
-            if tokens + (now - last) / self._seconds_per_token >= self._capacity:
-                del self._buckets[client]
+        for client, times in list(self._attempts.items()):
+            if not times or now - times[-1] >= self._window:
+                del self._attempts[client]
 
 
-def client_address(request: Request) -> str:
-    """The caller's address: the first X-Forwarded-For entry, else the connection's own."""
-    forwarded = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-    if forwarded:
-        return forwarded
-    return request.client.host if request.client else "unknown"
+async def enforce_booking_rate_limit(request: Request) -> None:
+    """Dependency for POST /bookings: refuse the attempt after the limit, before validation.
 
-
-def _is_booking_creation(request: Request) -> bool:
-    return request.method == "POST" and request.url.path.rstrip("/") == "/bookings"
-
-
-async def rate_limit_middleware(
-    request: Request, call_next: Callable[[Request], Awaitable[Response]]
-) -> Response:
-    """Refuse the 11th POST /bookings in a minute. Runs after the key check, so only requests
-    with the right key are counted."""
-    if _is_booking_creation(request):
-        who = f"{request.headers.get(API_KEY_HEADER, '')}|{client_address(request)}"
-        client = hashlib.sha256(who.encode()).hexdigest()
-        wait = request.app.state.rate_limiter.check(client)
-        if wait:
-            return error_response(429, "too many requests", {"Retry-After": str(wait)})
-    return await call_next(request)
+    It runs after the API key check (a wrong key is a 401 and is never counted). A body with no
+    usable email cannot be tied to anyone, so it is not counted.
+    """
+    try:
+        payload = await request.json()
+    except ValueError:
+        return
+    raw = payload.get("email") if isinstance(payload, dict) else None
+    email = normalize_email(raw) if isinstance(raw, str) else None
+    if email is None:
+        return
+    client = hashlib.sha256(email.encode()).hexdigest()
+    wait = request.app.state.rate_limiter.check(client)
+    if wait:
+        raise TooManyRequestsError("too many requests", headers={"Retry-After": str(wait)})

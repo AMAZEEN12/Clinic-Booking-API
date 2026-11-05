@@ -69,3 +69,27 @@ def test_surrounding_spaces_are_trimmed(client, api_headers, reset_slots):
     body = _book(client, api_headers, name="  Ada Obi  ", email="  ada@example.com ").json()
     assert body["name"] == "Ada Obi"
     assert body["email"] == "ada@example.com"
+
+
+def test_the_email_is_stored_in_lower_case(client, api_headers, reset_slots):
+    reset_slots([slot("s1")])
+    body = _book(client, api_headers, email="  Ada.Obi@Example.COM ").json()
+    assert body["email"] == "ada.obi@example.com"
+
+
+def test_a_slot_that_has_already_started_is_a_bad_request(client, api_headers, reset_slots):
+    past = {**slot("old"), "start": "2020-01-01T09:00:00Z", "end": "2020-01-01T09:30:00Z"}
+    reset_slots([past])
+    response = _book(client, api_headers, slot_id="old")
+    assert response.status_code == 400
+    assert response.json() == {"error": "slot has already started"}
+    available = [i["available"] for i in client.get("/slots", headers=api_headers).json()]
+    assert available == [True]
+
+
+def test_the_same_person_booking_a_taken_slot_again_is_a_conflict(client, api_headers, reset_slots):
+    reset_slots([slot("s1")])
+    assert _book(client, api_headers).status_code == 201
+    second = _book(client, api_headers)
+    assert second.status_code == 409
+    assert second.json() == {"error": "slot already booked"}

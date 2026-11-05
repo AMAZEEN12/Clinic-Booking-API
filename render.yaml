@@ -28,4 +28,4 @@ services:
       # The exact Vercel address of the web page, for example https://clinic-xyz.vercel.app (D42).
       - key: CORS_ORIGINS
         sync: false
-      # RATE_LIMIT_PER_MINUTE is deliberately not set: the default of 10 applies (D14, D46).
+      # RATE_LIMIT_PER_MINUTE is deliberately not set: the default of 5 booking attempts per email applies.

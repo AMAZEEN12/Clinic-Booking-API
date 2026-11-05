@@ -1,7 +1,7 @@
 // The only place that talks to the clinic booking API (see clinic-booking-api/app/routers).
 // Every failure becomes an ApiError with a `kind`, so screens never look at raw status codes.
 
-import type { Booking, BookingList, CreateBookingArgs, DashboardAppointment, DashboardSummary, Payment, Slot } from "@/models"
+import type { Booking, BookingList, BookingPage, CreateBookingArgs, DashboardAppointment, DashboardSummary, Payment, Slot } from "@/models"
 import { env } from "@/utils/env"
 
 export type ApiErrorKind =
@@ -139,11 +139,30 @@ export async function getDashboardAppointments(date: string): Promise<DashboardA
     return items as DashboardAppointment[]
 }
 
-/** The newest bookings made with this email (page 1, up to 20). */
+const LIST_PAGE_SIZE = 50
+const LIST_MAX_PAGES = 6
+
+function isBookingPage(value: unknown): value is BookingPage {
+    return (
+        !!value &&
+        typeof value === "object" &&
+        Array.isArray((value as BookingPage).bookings) &&
+        ((value as BookingPage).next_cursor === null || typeof (value as BookingPage).next_cursor === "string")
+    )
+}
+
+/** Every booking made with this email, newest first. Follows next_cursor (the API lists oldest first). */
 export async function listBookings(email: string): Promise<BookingList> {
-    const result = await request<unknown>(`/bookings?email=${encodeURIComponent(email)}&page=1&limit=20`)
-    if (!result || typeof result !== "object" || !Array.isArray((result as BookingList).items)) {
-        throw new ApiError("server", 200, "unexpected bookings response")
+    const all: Booking[] = []
+    let cursor: string | null = null
+    for (let pageNumber = 0; pageNumber < LIST_MAX_PAGES; pageNumber++) {
+        const query: string = `email=${encodeURIComponent(email)}&limit=${LIST_PAGE_SIZE}` + (cursor ? `&cursor=${encodeURIComponent(cursor)}` : "")
+        const result: unknown = await request<unknown>(`/bookings?${query}`)
+        if (!isBookingPage(result)) throw new ApiError("server", 200, "unexpected bookings response")
+        all.push(...result.bookings)
+        cursor = result.next_cursor
+        if (cursor === null) break
     }
-    return result as BookingList
+    const items = all.reverse()
+    return { items, total: items.length }
 }

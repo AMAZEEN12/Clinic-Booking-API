@@ -107,8 +107,8 @@ export async function installFakeApi(page: Page, options: FakeApiOptions = {}): 
 
         if (method === "GET" && path === "/bookings") {
             const email = (url.searchParams.get("email") ?? "").trim().toLowerCase()
-            const items = [...bookings.values()].filter((b) => b.email.toLowerCase() === email).reverse()
-            return reply(route, 200, { items, page: 1, limit: 20, total: items.length })
+            const found = [...bookings.values()].filter((b) => b.email.toLowerCase() === email)
+            return reply(route, 200, { bookings: found, next_cursor: null })
         }
 
         const bookingMatch = path.match(/^\/bookings\/([^/]+)(\/payment)?$/)
@@ -119,6 +119,7 @@ export async function installFakeApi(page: Page, options: FakeApiOptions = {}): 
 
             if (!isPayment && method === "GET") return reply(route, 200, booking)
             if (!isPayment && method === "DELETE") {
+                if (booking.status === "cancelled") return reply(route, 409, { error: "booking already cancelled" })
                 booking.status = "cancelled"
                 return reply(route, 200, booking)
             }

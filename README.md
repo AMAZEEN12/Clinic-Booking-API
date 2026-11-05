@@ -8,9 +8,9 @@ Built for the Koya Cohort 4 assessment, Task 1.
 
 | What | Address |
 |------|---------|
-| API | `<fill in: Render URL>` |
-| Web page | `<fill in: Vercel URL>` |
-| Health check | `<Render URL>/health` |
+| API | `https://clinic-booking-api-ayhl.onrender.com` |
+| Web page | `https://clinic-booking-api-mocha.vercel.app/` |
+| Health check | `https://clinic-booking-api-ayhl.onrender.com/health` |
 
 The API key is not in this repository. It was given to Koya in the submission form.
 

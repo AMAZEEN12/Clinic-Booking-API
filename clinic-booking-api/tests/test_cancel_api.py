@@ -56,14 +56,16 @@ def test_a_cancelled_slot_can_be_booked_again(client, api_headers, reset_slots):
     assert old["status"] == "cancelled"
 
 
-def test_cancelling_twice_returns_the_same_cancelled_booking(client, api_headers, reset_slots):
+def test_cancelling_twice_is_a_conflict(client, api_headers, reset_slots):
     reset_slots([slot("s1")])
     created = _book(client, api_headers).json()
     first = _cancel(client, api_headers, created["id"])
     second = _cancel(client, api_headers, created["id"])
     assert first.status_code == 200
-    assert second.status_code == 200
-    assert second.json() == first.json()
+    assert second.status_code == 409
+    assert second.json() == {"error": "booking already cancelled"}
+    fetched = client.get(f"/bookings/{created['id']}", headers=api_headers).json()
+    assert fetched["status"] == "cancelled"
 
 
 def test_cancelling_an_old_booking_does_not_free_a_newer_one(client, api_headers, reset_slots):
@@ -84,10 +86,11 @@ def test_unknown_booking_is_404(client, api_headers):
     assert response.json() == {"error": "booking not found"}
 
 
-def test_simultaneous_cancels_all_succeed_and_free_the_slot(client, api_headers, reset_slots):
+def test_simultaneous_cancels_one_succeeds_the_rest_conflict(client, api_headers, reset_slots):
     reset_slots([slot("s1")])
     created = _book(client, api_headers).json()
     results = run_together([lambda: _cancel(client, api_headers, created["id"])] * 10)
-    assert [response.status_code for response in results] == [200] * 10
-    assert {response.json()["status"] for response in results} == {"cancelled"}
+    statuses = [response.status_code for response in results]
+    assert statuses.count(200) == 1
+    assert statuses.count(409) == 9
     assert _availability(client, api_headers) == {"s1": True}

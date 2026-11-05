@@ -15,6 +15,14 @@ PersonName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=
 _EMAIL_SHAPE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
+def normalize_email(value: str) -> str | None:
+    """Trimmed, lower-case email, or None when it does not look like an email address."""
+    value = value.strip().lower()
+    if len(value) > 254 or not _EMAIL_SHAPE.match(value):
+        return None
+    return value
+
+
 def _to_utc(value: datetime) -> datetime:
     """Return every time in UTC; a time without a zone is taken as UTC."""
     if value.tzinfo is None:
@@ -56,10 +64,10 @@ class NewBooking(BaseModel):
     @field_validator("email")
     @classmethod
     def _valid_email(cls, value: str) -> str:
-        value = value.strip()
-        if len(value) > 254 or not _EMAIL_SHAPE.match(value):
+        email = normalize_email(value)
+        if email is None:
             raise ValueError("must be a valid email address")
-        return value
+        return email
 
 
 class Booking(BaseModel):
@@ -121,10 +129,8 @@ class DashboardAppointment(BaseModel):
         return _to_utc(value)
 
 
-class PageResponse(BaseModel):
-    """One page of a person's bookings, newest first (R10)."""
+class BookingPage(BaseModel):
+    """One page of a person's bookings, oldest first. `next_cursor` is null on the last page."""
 
-    items: list[Booking]
-    page: int
-    limit: int
-    total: int
+    bookings: list[Booking]
+    next_cursor: str | None

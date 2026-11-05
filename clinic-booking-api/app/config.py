@@ -3,13 +3,12 @@
 import os
 from dataclasses import dataclass
 
-# Paging for GET /bookings (D13): the only place these numbers live.
+# Paging for GET /bookings (Level 4): the only place these numbers live.
 DEFAULT_PAGE_SIZE = 10
-MAX_PAGE_SIZE = 100
-MAX_PAGE_NUMBER = 1_000_000
+MAX_PAGE_SIZE = 50
 
-# Creating bookings per minute per API key + client address (R11, D14).
-DEFAULT_RATE_LIMIT_PER_MINUTE = 10
+# Booking attempts per email per minute (Level 5, R11).
+DEFAULT_RATE_LIMIT_PER_MINUTE = 5
 
 
 @dataclass(frozen=True)

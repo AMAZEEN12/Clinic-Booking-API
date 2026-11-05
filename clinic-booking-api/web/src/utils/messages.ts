@@ -23,6 +23,7 @@ export function describeError(error: unknown, action: Action): string {
         case "conflict":
             if (action === "book") return "That time was just taken. Please choose another time."
             if (action === "pay") return "This booking has been cancelled, so it can't be paid."
+            if (action === "cancel") return "This booking was already cancelled."
             return "That booking can't be changed any more."
         case "invalid":
             return "Please check your details and try again."

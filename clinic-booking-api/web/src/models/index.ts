@@ -65,10 +65,14 @@ export type CreateBookingArgs = {
     idempotencyKey: string
 }
 
-/** GET /bookings?email= (clinic-booking-api/app/schemas.py, PageResponse). Newest first. */
+/** One page of GET /bookings?email= (clinic-booking-api/app/schemas.py, BookingPage). Oldest first. */
+export type BookingPage = {
+    bookings: Booking[]
+    next_cursor: string | null
+}
+
+/** All of a person's bookings, newest first: the pages from GET /bookings joined together. */
 export type BookingList = {
     items: Booking[]
-    page: number
-    limit: number
     total: number
 }

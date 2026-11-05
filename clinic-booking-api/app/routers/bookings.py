@@ -2,11 +2,12 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Header, Query
+from fastapi import APIRouter, Depends, Header, Query
 
-from app.config import DEFAULT_PAGE_SIZE, MAX_PAGE_NUMBER, MAX_PAGE_SIZE
+from app.config import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.errors import BadRequestError
-from app.schemas import Booking, NewBooking, PageResponse
+from app.ratelimit import enforce_booking_rate_limit
+from app.schemas import Booking, BookingPage, NewBooking
 from app.services import bookings as booking_service
 
 router = APIRouter()
@@ -22,7 +23,12 @@ def _clean_key(raw: str | None) -> str | None:
     return key or None
 
 
-@router.post("/bookings", status_code=201, response_model=Booking)
+@router.post(
+    "/bookings",
+    status_code=201,
+    response_model=Booking,
+    dependencies=[Depends(enforce_booking_rate_limit)],
+)
 def create_booking(
     new_booking: NewBooking,
     idempotency_key: Annotated[str | None, Header()] = None,
@@ -30,13 +36,13 @@ def create_booking(
     return booking_service.create_booking(new_booking, _clean_key(idempotency_key))
 
 
-@router.get("/bookings", response_model=PageResponse)
+@router.get("/bookings", response_model=BookingPage)
 def list_bookings(
     email: Annotated[str, Query()],
-    page: Annotated[int, Query(ge=1, le=MAX_PAGE_NUMBER)] = 1,
     limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
+    cursor: Annotated[str | None, Query()] = None,
 ):
-    return booking_service.list_bookings(email, page, limit)
+    return booking_service.list_bookings(email, limit, cursor)
 
 
 @router.get("/bookings/{booking_id}", response_model=Booking)
