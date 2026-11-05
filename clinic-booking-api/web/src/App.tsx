@@ -15,7 +15,6 @@ export function App() {
                     <Route path="find" element={<FindPage />} />
                     <Route path="booking/:id" element={<BookingPage />} />
                     <Route path="*" element={<NotFoundPage />} />
-                    <Route path="booking/:id" element={<BookingPage />} />
                     <Route path="dashboard" element={<DashboardPage />} />
                 </Route>
             </Routes>
