@@ -2,9 +2,9 @@ import { BrowserRouter, Route, Routes } from "react-router-dom"
 import { Shell } from "@/components/layout/Shell"
 import { BookPage } from "@/pages/BookPage"
 import { BookingPage } from "@/pages/BookingPage"
+import { DashboardPage } from "@/pages/DashboardPage"
 import { FindPage } from "@/pages/FindPage"
 import { NotFoundPage } from "@/pages/NotFoundPage"
-import { DashboardPage } from "@/pages/DashboardPage"
 
 export function App() {
     return (
@@ -14,9 +14,8 @@ export function App() {
                     <Route index element={<BookPage />} />
                     <Route path="find" element={<FindPage />} />
                     <Route path="booking/:id" element={<BookingPage />} />
-                    <Route path="*" element={<NotFoundPage />} />
-                    <Route path="booking/:id" element={<BookingPage />} />
                     <Route path="dashboard" element={<DashboardPage />} />
+                    <Route path="*" element={<NotFoundPage />} />
                 </Route>
             </Routes>
         </BrowserRouter>

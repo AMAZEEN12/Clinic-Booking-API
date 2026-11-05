@@ -26,6 +26,8 @@ Every endpoint except `/health` needs the header `X-API-Key`. Every error is `{"
 | `POST /reset` | Replace all slots (`{"slots":[...]}` or a bare list) and clear all bookings | 200 `{"slots": N}`, 400 |
 | `POST /bookings` | Book a slot: `{slot_id, name, email}` | 201, 400, 404, 409 (slot taken), 429 |
 | `GET /bookings/{id}` | One booking | 200, 404 |
+| `GET /dashboard/summary?date=YYYY-MM-DD` | Extra: counts for one UTC day (default today): `{date, booked, cancelled, open_slots, total_slots}` | 200, 400 |
+| `GET /dashboard/appointments?date=YYYY-MM-DD` | Extra: that day's appointments as a list, patient names masked (`Ada O.`), never emails | 200, 400 |
 | `GET /bookings?email=&page=&limit=` | A person's bookings, newest first: `{items, page, limit, total}` | 200, 400 |
 | `DELETE /bookings/{id}` | Cancel a booking; the slot can be booked again | 200, 404 |
 | `POST /bookings/{id}/payment` | Extra: pretend to pay for a confirmed booking (demo, no money, no body) | 200 `{booking_id, status, reference, paid_at}`, 404, 409 (cancelled) |
@@ -84,10 +86,12 @@ pnpm dev
 ```
 cd clinic-booking-api
 export TEST_DATABASE_URL="postgresql://USER:PASSWORD@HOST/TESTDB"
-pytest                       # 178 API tests against real PostgreSQL
+pytest                       # API tests against real PostgreSQL
 ruff check . && ruff format --check .
 
 pnpm --dir web typecheck && pnpm --dir web lint && pnpm --dir web test && pnpm --dir web build
+pnpm --dir web exec playwright install chromium   # once
+pnpm --dir web test:e2e      # page tests at 390 px and 1280 px, against a fake API
 ```
 
 GitHub Actions runs both on every push.
@@ -105,7 +109,8 @@ The full list is in `clinic-booking-api/sdlc/clinic-booking-api/WORKLOG.md`. The
 - Free hosting: cold starts after idle time, and a small database.
 - Extras: the simulated payment endpoints are built (see the table above); the clinic dashboard is not built yet.
 - The rate limit applies to every client, so a tool that books many slots in under a minute gets 429.
-
+- Extras: the simulated payment endpoints and the clinic dashboard (summary and appointments, masked names) are built. A "day" on the dashboard is a UTC day.
+- 
 ## Project layout
 
 ```
