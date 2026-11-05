@@ -1,7 +1,7 @@
 import { useRef, useState, type FormEvent } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { AppointmentSummary } from "@/components/booking/AppointmentSummary"
-import { DayChips } from "@/components/booking/DayChips"
+import { DayCalendar } from "@/components/booking/DayCalendar"
 import { SlotsSkeleton } from "@/components/booking/SlotsSkeleton"
 import { TimeGrid } from "@/components/booking/TimeGrid"
 import { Button } from "@/components/ui/button"
@@ -120,7 +120,7 @@ export function BookPage() {
                 <div className="space-y-6">
                     <Panel className="space-y-4">
                         <h2 className="font-heading text-xl font-bold">1. Choose a day and time</h2>
-                        <DayChips
+                        <DayCalendar
                             days={days}
                             selectedKey={activeDay.key}
                             onSelect={(key) => {

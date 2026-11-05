@@ -1,16 +1,18 @@
-"""Prints a POST /reset body with weekday slots for the next N days (default 14).
+"""Prints a POST /reset body with weekday slots for the next N days (default 90).
 
-Usage: python scripts/make_slots.py 14
+Usage: python scripts/make_slots.py 90 > slots.json
 Times are 09:00-16:00 Lagos time (UTC+1), every hour, two doctors alternating.
+Times that have already passed today are left out.
 """
 
 import json
 import sys
 from datetime import UTC, datetime, timedelta
 
-days = int(sys.argv[1]) if len(sys.argv) > 1 else 14
+days = int(sys.argv[1]) if len(sys.argv) > 1 else 90
 providers = ["Dr. Bello", "Dr. Eze"]
-today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+now = datetime.now(UTC)
+today = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 def iso(moment: datetime) -> str:
@@ -24,6 +26,8 @@ for offset in range(days):
         continue
     for i, hour in enumerate(range(8, 16)):
         start = day.replace(hour=hour)
+        if start <= now:
+            continue
         slots.append(
             {
                 "id": f"slot-{start:%Y%m%d-%H%M}",
