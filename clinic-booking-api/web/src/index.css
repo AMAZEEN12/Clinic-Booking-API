@@ -1,0 +1,59 @@
+@import "tailwindcss";
+@import "./styles/tokens.css";
+@import "./styles/motion.css";
+
+/* Lets Tailwind class names like bg-primary and text-muted use the tokens. */
+@theme {
+    --color-background: var(--background);
+    --color-surface: var(--surface);
+    --color-text: var(--text);
+    --color-muted: var(--muted);
+    --color-border: var(--border);
+    --color-border-input: var(--border-input);
+    --color-soft: var(--soft);
+
+    --color-primary: var(--primary);
+    --color-primary-hover: var(--primary-hover);
+    --color-on-primary: var(--on-primary);
+
+    --color-accent: var(--accent);
+    --color-on-accent: var(--on-accent);
+
+    --color-danger: var(--danger);
+    --color-danger-hover: var(--danger-hover);
+    --color-on-danger: var(--on-danger);
+    --color-danger-soft: var(--danger-soft);
+    --color-danger-line: var(--danger-line);
+    --color-danger-strong: var(--danger-strong);
+
+    --color-success: var(--success);
+    --color-on-success: var(--on-success);
+
+    --color-warning: var(--warning);
+    --color-on-warning: var(--on-warning);
+
+    --color-focus: var(--focus-ring);
+
+    --font-mono: var(--font-data);
+}
+
+@layer base {
+    body {
+        background-color: var(--background);
+        color: var(--text);
+        font-family: var(--font-sans);
+        font-size: 1rem; /* 16px minimum body text on mobile */
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3, h4, .font-heading {
+        font-family: var(--font-serif);
+        letter-spacing: -0.03em;
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 2px;
+    }
+}

@@ -1,0 +1,8 @@
+packages:
+  - "."
+
+# Lets Vite's esbuild run its install script (newer pnpm blocks it otherwise).
+allowBuilds:
+  esbuild: true
+onlyBuiltDependencies:
+  - esbuild

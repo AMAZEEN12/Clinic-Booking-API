@@ -1,0 +1,17 @@
+/* Motion: short (150-600 ms), ease-out, transform and opacity. Animate changes, not refreshes.
+ * All of it is switched off by the prefers-reduced-motion rule in tokens.css. */
+
+/* Press feedback; lift on hover for tiles chosen from a grid */
+.cf-press { transition: transform 140ms ease-out, background-color 200ms ease-out, border-color 200ms ease-out, color 200ms ease-out, box-shadow 200ms ease-out; }
+.cf-press:active:not(:disabled) { transform: scale(0.97); }
+.cf-lift:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 14px -10px rgba(15, 61, 46, 0.4); }
+
+/* Skeleton shimmer, shaped like the content it stands in for */
+@keyframes cf-shimmer { 0% { background-position: -420px 0; } 100% { background-position: 420px 0; } }
+.cf-skel {
+    background-color: var(--soft);
+    background-image: linear-gradient(90deg, rgba(255,255,255,0) 0, rgba(255,255,255,0.75) 50%, rgba(255,255,255,0) 100%);
+    background-size: 420px 100%;
+    background-repeat: no-repeat;
+    animation: cf-shimmer 1.3s ease-in-out infinite;
+}
