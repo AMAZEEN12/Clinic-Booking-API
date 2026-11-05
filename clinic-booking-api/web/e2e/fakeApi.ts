@@ -89,14 +89,6 @@ export async function installFakeApi(page: Page, options: FakeApiOptions = {}): 
         const path = url.pathname.slice(API_PREFIX.length)
         const method = request.method()
 
-        if (method === "GET" && path === "/slots") {
-            return reply(
-                route,
-                200,
-                slots.map((s) => ({ ...s, available: !isBooked(s.id) })),
-            )
-        }
-
         if (method === "POST" && path === "/bookings") {
             if (options.conflictOnBook) return reply(route, 409, { error: "slot already booked" })
             const body = request.postDataJSON() as { slot_id: string; name: string; email: string }
@@ -104,6 +96,14 @@ export async function installFakeApi(page: Page, options: FakeApiOptions = {}): 
             if (isBooked(body.slot_id)) return reply(route, 409, { error: "slot already booked" })
             return reply(route, 201, addBooking({ slotId: body.slot_id, name: body.name, email: body.email }))
         }
+
+        if (method === "GET" && path === "/bookings") {
+            const email = (url.searchParams.get("email") ?? "").trim().toLowerCase()
+            const items = [...bookings.values()].filter((b) => b.email.toLowerCase() === email).reverse()
+            return reply(route, 200, { items, page: 1, limit: 20, total: items.length })
+        }
+
+
 
         const bookingMatch = path.match(/^\/bookings\/([^/]+)(\/payment)?$/)
         if (bookingMatch) {
