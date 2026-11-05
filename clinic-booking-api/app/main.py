@@ -13,7 +13,7 @@ from app.config import cors_origins_from_env, load_settings
 from app.errors import install_error_handlers
 from app.logsafe import hide_query_strings
 from app.ratelimit import TokenBucketLimiter, rate_limit_middleware
-from app.routers import bookings, health, payments, reset, slots
+from app.routers import bookings, dashboard, health, payments, reset, slots
 from app.security import api_key_middleware
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -61,5 +61,6 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(bookings.router)
 app.include_router(payments.router)
+app.include_router(dashboard.router)
 app.include_router(slots.router)
 app.include_router(reset.router)

@@ -31,6 +31,27 @@ export type Payment = {
     /** ISO 8601 UTC. Null until the booking is paid. */
     paid_at: string | null
 }
+/** Counts for one UTC day (clinic-booking-api/app/schemas.py, DashboardSummary). */
+export type DashboardSummary = {
+    /** YYYY-MM-DD, the UTC day the counts are for. */
+    date: string
+    booked: number
+    cancelled: number
+    open_slots: number
+    total_slots: number
+}
+
+/** One booking on the dashboard. `patient` is already masked by the API (for example "Ada O."): there is no email. */
+export type DashboardAppointment = {
+    booking_id: string
+    slot_id: string
+    provider: string
+    start: string
+    end: string
+    patient: string
+    status: BookingStatus
+    payment: PaymentStatus
+}
 
 export type NewBooking = {
     slot_id: string

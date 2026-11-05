@@ -1,6 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { ApiError, cancelBooking, createBooking, getBooking, getPayment, getSlots, kindForStatus, payForBooking } from "./api"
-
+import {
+    ApiError,
+    cancelBooking,
+    createBooking,
+    getBooking,
+    getDashboardAppointments,
+    getDashboardSummary,
+    getPayment,
+    getSlots,
+    kindForStatus,
+    payForBooking,
+} from "./api"
 vi.mock("@/utils/env", () => ({ env: { apiBaseUrl: "https://api.example.test", apiKey: "test-key" } }))
 
 function reply(status: number, body: unknown, headers: Record<string, string> = {}) {
@@ -135,6 +145,49 @@ describe("getPayment and payForBooking", () => {
     it("turns paying a cancelled booking into a conflict error", async () => {
         stubFetch(reply(409, { error: "booking is cancelled" }))
         await expect(payForBooking("bk_1")).rejects.toMatchObject({ kind: "conflict", status: 409 })
+    })
+})
+
+describe("dashboard requests", () => {
+    it("reads the summary for a day", async () => {
+        const summary = { date: "2026-12-10", booked: 1, cancelled: 1, open_slots: 2, total_slots: 3 }
+        const fetchMock = stubFetch(reply(200, summary))
+
+        await expect(getDashboardSummary("2026-12-10")).resolves.toEqual(summary)
+
+        const { url, init, headers } = lastCall(fetchMock)
+        expect(url).toBe("https://api.example.test/dashboard/summary?date=2026-12-10")
+        expect(init.method).toBe("GET")
+        expect(headers["X-API-Key"]).toBe("test-key")
+    })
+
+    it("reads the appointments for a day", async () => {
+        const items = [
+            {
+                booking_id: "bk_1",
+                slot_id: "s1",
+                provider: "Dr Ade",
+                start: "2026-12-10T09:00:00Z",
+                end: "2026-12-10T09:30:00Z",
+                patient: "Ada O.",
+                status: "confirmed",
+                payment: "paid",
+            },
+        ]
+        const fetchMock = stubFetch(reply(200, items))
+
+        await expect(getDashboardAppointments("2026-12-10")).resolves.toEqual(items)
+        expect(lastCall(fetchMock).url).toBe("https://api.example.test/dashboard/appointments?date=2026-12-10")
+    })
+
+    it("rejects an appointments answer that is not a list", async () => {
+        stubFetch(reply(200, { items: [] }))
+        await expect(getDashboardAppointments("2026-12-10")).rejects.toMatchObject({ kind: "server" })
+    })
+
+    it("turns a bad date into an invalid error", async () => {
+        stubFetch(reply(400, { error: "date must be YYYY-MM-DD" }))
+        await expect(getDashboardSummary("nope")).rejects.toMatchObject({ kind: "invalid", status: 400 })
     })
 })
 

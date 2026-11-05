@@ -2,6 +2,7 @@
 
 import re
 from datetime import UTC, datetime
+from datetime import date as DateValue
 from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator, model_validator
@@ -90,6 +91,34 @@ class Payment(BaseModel):
     @classmethod
     def _paid_at_utc(cls, value: datetime | None) -> datetime | None:
         return None if value is None else _to_utc(value)
+
+
+class DashboardSummary(BaseModel):
+    """Counts for one UTC day (R15). `booked` + `open_slots` always equals `total_slots`."""
+
+    date: DateValue
+    booked: int
+    cancelled: int
+    open_slots: int
+    total_slots: int
+
+
+class DashboardAppointment(BaseModel):
+    """One booking on the dashboard (R16). `patient` is masked (D36); there is no email field."""
+
+    booking_id: str
+    slot_id: str
+    provider: str
+    start: datetime
+    end: datetime
+    patient: str
+    status: Literal["confirmed", "cancelled"]
+    payment: Literal["paid", "unpaid"]
+
+    @field_validator("start", "end")
+    @classmethod
+    def _as_utc(cls, value: datetime) -> datetime:
+        return _to_utc(value)
 
 
 class PageResponse(BaseModel):

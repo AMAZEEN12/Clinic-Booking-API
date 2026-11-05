@@ -1,7 +1,7 @@
 // The only place that talks to the clinic booking API (see clinic-booking-api/app/routers).
 // Every failure becomes an ApiError with a `kind`, so screens never look at raw status codes.
 
-import type { Booking, CreateBookingArgs, Payment, Slot } from "@/models"
+import type { Booking, CreateBookingArgs, DashboardAppointment, DashboardSummary, Payment, Slot } from "@/models"
 import { env } from "@/utils/env"
 
 export type ApiErrorKind =
@@ -127,4 +127,14 @@ export function getPayment(id: string): Promise<Payment> {
 /** Demo payment: sends no body, so no card details can ever leave the page. */
 export function payForBooking(id: string): Promise<Payment> {
     return request<Payment>(`/bookings/${encodeURIComponent(id)}/payment`, { method: "POST" })
+}
+/** `date` is a UTC day, YYYY-MM-DD. */
+export function getDashboardSummary(date: string): Promise<DashboardSummary> {
+    return request<DashboardSummary>(`/dashboard/summary?date=${encodeURIComponent(date)}`)
+}
+
+export async function getDashboardAppointments(date: string): Promise<DashboardAppointment[]> {
+    const items = await request<unknown>(`/dashboard/appointments?date=${encodeURIComponent(date)}`)
+    if (!Array.isArray(items)) throw new ApiError("server", 200, "unexpected appointments response")
+    return items as DashboardAppointment[]
 }
