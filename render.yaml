@@ -1,0 +1,31 @@
+# Render Blueprint for the API. Lives at the repository root (Render requires that);
+# the Python project is in the clinic-booking-api/ folder.
+services:
+  - type: web
+    name: clinic-booking-api
+    runtime: python
+    plan: free
+    # Match the region of your Neon project (for example frankfurt, oregon, ohio, singapore).
+    # Left out here, so Render uses its default (oregon).
+    # region: frankfurt
+    rootDir: clinic-booking-api
+    buildCommand: pip install -r requirements.txt
+    # Exactly ONE worker: the rate limiter lives in memory (D14, D39). Do not add --no-access-log:
+    # app/logsafe.py already hides query strings, which can hold an email address (N4).
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /health
+    # Deploys happen only when the release manager clicks "Manual Deploy" (D27).
+    autoDeploy: false
+    envVars:
+      # The same Python as CI. Must be a full version number.
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      # Secrets and settings you type into the Render dashboard; never written in this file.
+      - key: DATABASE_URL
+        sync: false
+      - key: API_KEY
+        sync: false
+      # The exact Vercel address of the web page, for example https://clinic-xyz.vercel.app (D42).
+      - key: CORS_ORIGINS
+        sync: false
+      # RATE_LIMIT_PER_MINUTE is deliberately not set: the default of 10 applies (D14, D46).
