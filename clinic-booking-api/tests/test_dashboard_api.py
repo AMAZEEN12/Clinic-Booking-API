@@ -156,6 +156,10 @@ def test_the_default_day_is_today_in_utc(client, api_headers, reset_slots, migra
     assert isinstance(listed.json(), list)
 
 
+@pytest.mark.parametrize(
+    "bad_date",
+    ["2026-13-01", "2026-02-30", "10-12-2026", "20261210", "2026-12-10T00:00:00Z", "today", ""],
+)
 def test_a_bad_date_is_a_400_for_both_endpoints(client, api_headers, three_slots, bad_date):
     for path in ("/dashboard/summary", "/dashboard/appointments"):
         response = client.get(path, params={"date": bad_date}, headers=api_headers)
