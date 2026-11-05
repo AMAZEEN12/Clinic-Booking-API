@@ -1,0 +1,28 @@
+name: Verify live API
+
+# Run by hand from the Actions tab. It RESETS the live data, then puts the demo slots back.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type RESET to confirm this wipes live bookings'
+        required: true
+
+jobs:
+  verify:
+    if: ${{ github.event.inputs.confirm == 'RESET' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Wake the API up
+        run: curl -fsS --retry 6 --retry-delay 15 --max-time 90 "${{ secrets.API_URL }}/health"
+      - name: Check every level against the live API
+        working-directory: clinic-booking-api
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          API_KEY: ${{ secrets.API_KEY }}
+        run: python scripts/verify_live.py --yes
