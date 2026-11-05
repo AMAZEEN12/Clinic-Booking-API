@@ -89,6 +89,29 @@ test.describe("patient booking flow", () => {
         await expect(page.getByRole("heading", { name: "Your booking is confirmed" })).toBeVisible()
     })
 
+    test("finds your booking IDs by email", async ({ page }) => {
+        const api = await installFakeApi(page)
+        const booking = api.seedBooking({ slotId: "slot_2", name: "Ngozi Eze", email: "ngozi@example.test" })
+        await page.goto("/find")
+
+        await page.getByLabel("Email used to book").fill("Ngozi@Example.test")
+        await page.getByRole("button", { name: "Find my bookings" }).click()
+
+        await expect(page.getByRole("link", { name: booking.id })).toBeVisible()
+        await page.getByRole("link", { name: booking.id }).click()
+        await expect(page.getByRole("heading", { name: "Your booking is confirmed" })).toBeVisible()
+    })
+
+    test("says so when an email has no bookings", async ({ page }) => {
+        await installFakeApi(page)
+        await page.goto("/find")
+
+        await page.getByLabel("Email used to book").fill("nobody@example.test")
+        await page.getByRole("button", { name: "Find my bookings" }).click()
+
+        await expect(page.getByText("No bookings found for nobody@example.test.")).toBeVisible()
+    })
+
     test("says so when a booking ID does not exist", async ({ page }) => {
         await installFakeApi(page)
         await page.goto("/booking/bk_missing")

@@ -19,3 +19,13 @@ export function validateDetails(name: string, email: string): DetailsErrors {
 
     return errors
 }
+
+
+
+/** Just the email rule, for forms that ask for nothing else. */
+export function validateEmail(email: string): string | undefined {
+    const clean = email.trim()
+    if (clean.length === 0) return "Enter your email."
+    if (clean.length > 254 || !EMAIL_SHAPE.test(clean)) return "Enter an email like name@example.com."
+    return undefined
+}

@@ -64,3 +64,11 @@ export type CreateBookingArgs = {
     /** Sent as the Idempotency-Key header so a retried request never books twice. */
     idempotencyKey: string
 }
+
+/** GET /bookings?email= (clinic-booking-api/app/schemas.py, PageResponse). Newest first. */
+export type BookingList = {
+    items: Booking[]
+    page: number
+    limit: number
+    total: number
+}

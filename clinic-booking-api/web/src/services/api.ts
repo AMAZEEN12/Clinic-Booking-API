@@ -1,7 +1,7 @@
 // The only place that talks to the clinic booking API (see clinic-booking-api/app/routers).
 // Every failure becomes an ApiError with a `kind`, so screens never look at raw status codes.
 
-import type { Booking, CreateBookingArgs, DashboardAppointment, DashboardSummary, Payment, Slot } from "@/models"
+import type { Booking, BookingList, CreateBookingArgs, DashboardAppointment, DashboardSummary, Payment, Slot } from "@/models"
 import { env } from "@/utils/env"
 
 export type ApiErrorKind =
@@ -137,4 +137,13 @@ export async function getDashboardAppointments(date: string): Promise<DashboardA
     const items = await request<unknown>(`/dashboard/appointments?date=${encodeURIComponent(date)}`)
     if (!Array.isArray(items)) throw new ApiError("server", 200, "unexpected appointments response")
     return items as DashboardAppointment[]
+}
+
+/** The newest bookings made with this email (page 1, up to 20). */
+export async function listBookings(email: string): Promise<BookingList> {
+    const result = await request<unknown>(`/bookings?email=${encodeURIComponent(email)}&page=1&limit=20`)
+    if (!result || typeof result !== "object" || !Array.isArray((result as BookingList).items)) {
+        throw new ApiError("server", 200, "unexpected bookings response")
+    }
+    return result as BookingList
 }

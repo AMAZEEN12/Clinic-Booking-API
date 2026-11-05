@@ -107,6 +107,11 @@ export async function installFakeApi(page: Page, options: FakeApiOptions = {}): 
 
         const bookingMatch = path.match(/^\/bookings\/([^/]+)(\/payment)?$/)
         if (bookingMatch) {
+            if (method === "GET" && path === "/bookings") {
+                const email = (url.searchParams.get("email") ?? "").trim().toLowerCase()
+                const items = [...bookings.values()].filter((b) => b.email.toLowerCase() === email).reverse()
+                return reply(route, 200, { items, page: 1, limit: 20, total: items.length })
+            }
             const booking = bookings.get(decodeURIComponent(bookingMatch[1]))
             if (!booking) return reply(route, 404, { error: "booking not found" })
             const isPayment = bookingMatch[2] !== undefined
