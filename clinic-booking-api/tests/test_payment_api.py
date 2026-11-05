@@ -170,7 +170,8 @@ def test_the_core_booking_responses_do_not_change_when_a_booking_is_paid(
     assert after == before
 
     listed = client.get("/bookings", params={"email": booking["email"]}, headers=api_headers)
-    assert all(set(item) == BOOKING_FIELDS for item in listed.json()["items"])
+    assert listed.json()["bookings"]
+    assert all(set(item) == BOOKING_FIELDS for item in listed.json()["bookings"])
 
 
 # --- the key is required ------------------------------------------------------------------------

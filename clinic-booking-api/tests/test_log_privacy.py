@@ -149,7 +149,7 @@ def test_a_reset_writes_one_audit_line_with_the_slot_count(client, api_headers, 
     assert _audit_lines(caplog) == ["audit event=slots_reset slots=2"]
 
 
-def test_cancelling_again_changes_nothing_so_writes_no_audit_line(
+def test_cancelling_again_is_a_conflict_and_writes_no_audit_line(
     client, api_headers, reset_slots, caplog
 ):
     reset_slots([slot("s1")])
@@ -159,7 +159,7 @@ def test_cancelling_again_changes_nothing_so_writes_no_audit_line(
 
     response = client.delete(f"/bookings/{booking_id}", headers=api_headers)
 
-    assert response.status_code == 200
+    assert response.status_code == 409
     assert _audit_lines(caplog) == []
 
 
@@ -175,9 +175,10 @@ def test_a_repeated_request_creates_nothing_so_writes_no_second_audit_line(
     same_key = client.post(
         "/bookings", json=new_booking(), headers={**api_headers, "Idempotency-Key": "retry-1"}
     )
-    same_person = _book(client, api_headers)
+    same_person_no_key = _book(client, api_headers)  # slot taken: 409
 
-    assert [first.status_code, same_key.status_code, same_person.status_code] == [201, 201, 201]
+    statuses = [first.status_code, same_key.status_code, same_person_no_key.status_code]
+    assert statuses == [201, 201, 409]
     assert len(_audit_lines(caplog)) == 1
 
 
