@@ -9,12 +9,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 
 from app import db
-from app.config import cors_origins_from_env, load_settings
+from app.config import LOGIN_ATTEMPTS_PER_MINUTE, cors_origins_from_env, load_settings
 from app.errors import install_error_handlers
 from app.logsafe import hide_query_strings
 from app.ratelimit import SlidingWindowLimiter
-from app.routers import bookings, dashboard, health, payments, reset, slots
+from app.routers import auth, bookings, dashboard, health, payments, reset, slots
 from app.security import api_key_middleware
+from app.services import auth as auth_service
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 hide_query_strings()
@@ -30,8 +31,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = load_settings()
     app.state.settings = settings
     app.state.rate_limiter = SlidingWindowLimiter(settings.rate_limit_per_minute)
+    app.state.login_limiter = SlidingWindowLimiter(LOGIN_ATTEMPTS_PER_MINUTE)
     db.run_migrations(settings.database_url)
     db.init_pool(settings.database_url)
+    auth_service.seed_users(settings)
     try:
         yield
     finally:
@@ -54,11 +57,12 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins_from_env(),
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-    allow_headers=["X-API-Key", "Content-Type", "Idempotency-Key"],
+    allow_headers=["X-API-Key", "Content-Type", "Idempotency-Key", "Authorization"],
     expose_headers=["Retry-After"],
     max_age=600,
 )
 app.include_router(health.router)
+app.include_router(auth.router)
 app.include_router(bookings.router)
 app.include_router(payments.router)
 app.include_router(dashboard.router)
