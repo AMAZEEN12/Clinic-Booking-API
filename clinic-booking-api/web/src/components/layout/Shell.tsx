@@ -1,5 +1,8 @@
-import { NavLink, Outlet } from "react-router-dom"
+import { NavLink, Outlet, useNavigate } from "react-router-dom"
+import { Button } from "@/components/ui/button"
+import { useAuth } from "@/hooks/useAuth"
 import { cn } from "@/lib/cn"
+import { clearSession } from "@/services/session"
 import { CLINIC_TZ_LABEL } from "@/utils/clinicTime"
 import { routes } from "@/utils/routes"
 
@@ -24,6 +27,14 @@ function NavItem({ to, children }: { to: string; children: string }) {
 
 /** The frame around every page: skip link, header with navigation, content, footer. */
 export function Shell() {
+    const session = useAuth()
+    const navigate = useNavigate()
+
+    function handleSignOut() {
+        clearSession()
+        navigate(routes.login, { replace: true })
+    }
+
     return (
         <div className="flex min-h-screen flex-col">
             <a
@@ -36,11 +47,26 @@ export function Shell() {
             <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)]">
                 <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-6">
                     <p className="font-heading text-xl font-extrabold">Bee Clinic</p>
-                    <nav aria-label="Main" className="flex gap-1">
-                        <NavItem to={routes.book}>Book</NavItem>
-                        <NavItem to={routes.find}>Find a booking</NavItem>
-                        <NavItem to={routes.dashboard}>Dashboard</NavItem>
-                    </nav>
+                    {session && (
+                        <div className="flex flex-wrap items-center gap-1">
+                            {/* Each role only gets its own links. */}
+                            <nav aria-label="Main" className="flex gap-1">
+                                {session.role === "patient" && (
+                                    <>
+                                        <NavItem to={routes.book}>Book</NavItem>
+                                        <NavItem to={routes.find}>Find a booking</NavItem>
+                                    </>
+                                )}
+                                {session.role === "staff" && <NavItem to={routes.dashboard}>Dashboard</NavItem>}
+                            </nav>
+                            <span className="px-2 text-sm text-[var(--color-text-muted)]">
+                                {session.name} ({session.role})
+                            </span>
+                            <Button variant="secondary" size="sm" onClick={handleSignOut}>
+                                Sign out
+                            </Button>
+                        </div>
+                    )}
                 </div>
             </header>
 
