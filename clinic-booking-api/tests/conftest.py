@@ -7,9 +7,14 @@ from fastapi.testclient import TestClient
 
 from app import db
 from app.main import app
+from app.ratelimit import SlidingWindowLimiter
+from app.services.auth import PATIENT_EMAIL, STAFF_EMAIL
 from tests.guard import GuardError, check_test_database
 
 API_KEY = "test-key-not-a-secret"
+AUTH_SECRET = "test-auth-secret-not-a-secret-0123456789"
+STAFF_PASSWORD = "staff-test-password"
+PATIENT_PASSWORD = "patient-test-password"
 
 
 @pytest.fixture(scope="session")
@@ -44,13 +49,38 @@ def client(migrated_database: str) -> Iterator[TestClient]:
     with pytest.MonkeyPatch.context() as patch:
         patch.setenv("DATABASE_URL", migrated_database)
         patch.setenv("API_KEY", API_KEY)
+        patch.setenv("AUTH_SECRET", AUTH_SECRET)
+        patch.setenv("STAFF_PASSWORD", STAFF_PASSWORD)
+        patch.setenv("PATIENT_PASSWORD", PATIENT_PASSWORD)
         with TestClient(app) as test_client:
+            # The shared run signs in often; the login-limit tests swap in their own limiter.
+            test_client.app.state.login_limiter = SlidingWindowLimiter(100_000)
             yield test_client
 
 
 @pytest.fixture(scope="session")
 def api_headers() -> dict[str, str]:
     return {"X-API-Key": API_KEY}
+
+
+def _sign_in(client: TestClient, api_headers: dict[str, str], email: str, password: str) -> dict:
+    response = client.post(
+        "/auth/login", json={"email": email, "password": password}, headers=api_headers
+    )
+    assert response.status_code == 200
+    return {**api_headers, "Authorization": f"Bearer {response.json()['token']}"}
+
+
+@pytest.fixture(scope="session")
+def staff_headers(client: TestClient, api_headers: dict[str, str]) -> dict[str, str]:
+    """API key plus a signed-in staff member's token (for the dashboard)."""
+    return _sign_in(client, api_headers, STAFF_EMAIL, STAFF_PASSWORD)
+
+
+@pytest.fixture(scope="session")
+def patient_headers(client: TestClient, api_headers: dict[str, str]) -> dict[str, str]:
+    """API key plus a signed-in patient's token."""
+    return _sign_in(client, api_headers, PATIENT_EMAIL, PATIENT_PASSWORD)
 
 
 @pytest.fixture
