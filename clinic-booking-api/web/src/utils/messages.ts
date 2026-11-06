@@ -2,7 +2,7 @@
 
 import { ApiError } from "@/services/api"
 
-export type Action = "load" | "book" | "lookup" | "cancel" | "pay"
+export type Action = "load" | "book" | "lookup" | "cancel" | "pay" | "login"
 
 export function describeError(error: unknown, action: Action): string {
     if (!(error instanceof ApiError)) return "Something went wrong. Please try again."
@@ -11,7 +11,11 @@ export function describeError(error: unknown, action: Action): string {
         case "network":
             return "We couldn't reach the booking service. Check your connection and try again. If the service was asleep, it can take a minute to wake up."
         case "unauthorized":
+            // A wrong API key is a set-up problem; anything else on the login form is a wrong password.
+            if (action === "login" && !/api key/i.test(error.message)) return "Wrong email or password."
             return "The booking service isn't set up correctly. Please tell the clinic."
+        case "forbidden":
+            return "That part of the site is for clinic staff only."
         case "rate_limited":
             return error.retryAfterSeconds
                 ? `Too many attempts. Please wait ${error.retryAfterSeconds} seconds and try again.`
