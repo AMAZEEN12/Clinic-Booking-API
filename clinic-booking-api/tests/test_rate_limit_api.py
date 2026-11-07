@@ -163,10 +163,9 @@ def test_a_body_without_an_email_still_counts(client, api_headers, limited):
 
 
 def test_an_unreadable_body_still_counts(client, api_headers, limited):
+    json_headers = {**api_headers, "Content-Type": "application/json"}
     for _ in range(LIMIT):
-        response = client.post(
-            "/bookings", content=b"not json", headers={**api_headers, "Content-Type": "application/json"}
-        )
+        response = client.post("/bookings", content=b"not json", headers=json_headers)
         assert response.status_code == 400
     assert _post(client, api_headers).status_code == 429
 
