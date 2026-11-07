@@ -8,11 +8,11 @@ import { homeFor, routes } from "@/utils/routes"
  * signed in with the other role goes back to their own home (a patient never reaches the
  * dashboard, staff never reach the booking screens).
  */
-export function RequireRole({ role }: { role: Role }) {
+export function RequireRole({ allow }: { allow: Role }) {
     const session = useAuth()
     const location = useLocation()
 
     if (!session) return <Navigate to={routes.login} replace state={{ from: location.pathname }} />
-    if (session.role !== role) return <Navigate to={homeFor(session.role)} replace />
+    if (session.role !== allow) return <Navigate to={homeFor(session.role)} replace />
     return <Outlet />
 }

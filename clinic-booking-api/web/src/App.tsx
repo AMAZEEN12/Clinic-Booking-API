@@ -15,13 +15,13 @@ export function App() {
                 <Route element={<Shell />}>
                     <Route path="login" element={<LoginPage />} />
                     {/* Patients only: book, find and manage a booking. */}
-                    <Route element={<RequireRole role="patient" />}>
+                    <Route element={<RequireRole allow="patient" />}>
                         <Route index element={<BookPage />} />
                         <Route path="find" element={<FindPage />} />
                         <Route path="booking/:id" element={<BookingPage />} />
                     </Route>
                     {/* Staff only: the daily dashboard. */}
-                    <Route element={<RequireRole role="staff" />}>
+                    <Route element={<RequireRole allow="staff" />}>
                         <Route path="dashboard" element={<DashboardPage />} />
                     </Route>
                     <Route path="*" element={<NotFoundPage />} />
