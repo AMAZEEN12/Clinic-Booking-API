@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { Slot } from "@/models"
-import { groupByDay } from "./slots"
+import { groupByDay, upcomingSlots } from "./slots"
 
 function slot(id: string, start: string, available = true): Slot {
     return { id, provider: "Dr Ade", start, end: start, available }
@@ -32,5 +32,27 @@ describe("groupByDay", () => {
 
     it("returns nothing for no slots", () => {
         expect(groupByDay([])).toEqual([])
+    })
+})
+
+describe("upcomingSlots", () => {
+    const now = Date.parse("2026-12-10T10:00:00Z")
+
+    it("drops slots that have already started, even when the API lists them as free", () => {
+        const kept = upcomingSlots(
+            [
+                slot("past-day", "2026-12-09T09:00:00Z"),
+                slot("earlier-today", "2026-12-10T09:00:00Z"),
+                slot("starting-now", "2026-12-10T10:00:00Z"),
+                slot("later-today", "2026-12-10T11:00:00Z"),
+                slot("tomorrow", "2026-12-11T09:00:00Z"),
+            ],
+            now,
+        )
+        expect(kept.map((s) => s.id)).toEqual(["later-today", "tomorrow"])
+    })
+
+    it("returns nothing when every slot is in the past", () => {
+        expect(upcomingSlots([slot("old", "2026-01-01T09:00:00Z")], now)).toEqual([])
     })
 })

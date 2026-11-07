@@ -1,6 +1,14 @@
 import type { Slot } from "@/models"
 import { clinicDateKey } from "./clinicTime"
 
+/**
+ * Only the slots that have not started yet. A time that has passed can no longer be booked (the
+ * API refuses it), so patients never see it, even though the API still lists it as free.
+ */
+export function upcomingSlots(slots: readonly Slot[], now: number = Date.now()): Slot[] {
+    return slots.filter((slot) => Date.parse(slot.start) > now)
+}
+
 export type DayGroup = {
     /** YYYY-MM-DD in clinic time. */
     key: string

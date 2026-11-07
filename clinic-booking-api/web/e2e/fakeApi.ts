@@ -47,6 +47,10 @@ function maskName(full: string): string {
     return parts.length === 1 ? parts[0] : `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`
 }
 
+function addDay(iso: string): string {
+    return new Date(Date.parse(iso) + 24 * 60 * 60 * 1000).toISOString()
+}
+
 function reply(route: Route, status: number, body: unknown) {
     return route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) })
 }
@@ -146,7 +150,9 @@ export async function installFakeApi(page: Page, options: FakeApiOptions = {}): 
             return reply(
                 route,
                 200,
-                slots.map((s) => ({ ...s, available: !isBooked(s.id) })),
+                // Listed for tomorrow, so the booking page (which hides times that have passed) always has
+                // times to show. The dashboard still uses today's day, which is its default.
+                slots.map((s) => ({ ...s, start: addDay(s.start), end: addDay(s.end), available: !isBooked(s.id) })),
             )
         }
 
