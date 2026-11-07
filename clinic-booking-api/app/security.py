@@ -13,7 +13,9 @@ API_KEY_HEADER = "X-API-Key"
 def requires_api_key(path: str) -> bool:
     """True for the API endpoints. /health, /config.js and the web page files are public."""
     path = path.rstrip("/") or "/"
-    return path in ("/slots", "/reset") or path.startswith(("/bookings", "/dashboard/"))
+    return path in ("/slots", "/reset", "/auth/login") or path.startswith(
+        ("/bookings", "/dashboard/")
+    )
 
 
 def key_matches(provided: str | None, expected: str) -> bool:

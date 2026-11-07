@@ -7,7 +7,7 @@ function timeButton(page: Page, time: RegExp) {
 
 test.describe("patient booking flow", () => {
     test("books a time and shows the confirmation", async ({ page }) => {
-        await installFakeApi(page)
+        await installFakeApi(page, { signedInAs: "patient" })
         await page.goto("/")
         await expect(page.getByRole("heading", { name: "Book an appointment", level: 1 })).toBeVisible()
 
@@ -22,7 +22,7 @@ test.describe("patient booking flow", () => {
     })
 
     test("a taken time is disabled and says Taken in words", async ({ page }) => {
-        await installFakeApi(page, { takenSlotIds: ["slot_2"] })
+        await installFakeApi(page, { signedInAs: "patient", takenSlotIds: ["slot_2"] })
         await page.goto("/")
 
         const taken = page.getByRole("button", { name: /Taken/ })
@@ -31,7 +31,7 @@ test.describe("patient booking flow", () => {
     })
 
     test("asks for a time and your details before booking", async ({ page }) => {
-        await installFakeApi(page)
+        await installFakeApi(page, { signedInAs: "patient" })
         await page.goto("/")
         await page.getByRole("button", { name: "Confirm booking" }).click()
 
@@ -42,7 +42,7 @@ test.describe("patient booking flow", () => {
     })
 
     test("tells the patient when someone else took the time", async ({ page }) => {
-        await installFakeApi(page, { conflictOnBook: true })
+        await installFakeApi(page, { signedInAs: "patient", conflictOnBook: true })
         await page.goto("/")
 
         await timeButton(page, /^10:00/).click()
@@ -55,7 +55,7 @@ test.describe("patient booking flow", () => {
     })
 
     test("cancels a booking", async ({ page }) => {
-        const api = await installFakeApi(page)
+        const api = await installFakeApi(page, { signedInAs: "patient" })
         const booking = api.seedBooking({ slotId: "slot_1", name: "Chidi Okafor", email: "chidi@example.test" })
         await page.goto(`/booking/${booking.id}`)
 
@@ -67,7 +67,7 @@ test.describe("patient booking flow", () => {
     })
 
     test("pays for a booking (demo)", async ({ page }) => {
-        const api = await installFakeApi(page)
+        const api = await installFakeApi(page, { signedInAs: "patient" })
         const booking = api.seedBooking({ slotId: "slot_1", name: "Chidi Okafor", email: "chidi@example.test" })
         await page.goto(`/booking/${booking.id}`)
 
@@ -78,7 +78,7 @@ test.describe("patient booking flow", () => {
     })
 
     test("finds a booking by its ID", async ({ page }) => {
-        const api = await installFakeApi(page)
+        const api = await installFakeApi(page, { signedInAs: "patient" })
         const booking = api.seedBooking({ slotId: "slot_3", name: "Ngozi Eze", email: "ngozi@example.test" })
         await page.goto("/find")
 
@@ -90,7 +90,7 @@ test.describe("patient booking flow", () => {
     })
 
     test("finds your booking IDs by email", async ({ page }) => {
-        const api = await installFakeApi(page)
+        const api = await installFakeApi(page, { signedInAs: "patient" })
         const booking = api.seedBooking({ slotId: "slot_2", name: "Ngozi Eze", email: "ngozi@example.test" })
         await page.goto("/find")
 
@@ -103,7 +103,7 @@ test.describe("patient booking flow", () => {
     })
 
     test("says so when an email has no bookings", async ({ page }) => {
-        await installFakeApi(page)
+        await installFakeApi(page, { signedInAs: "patient" })
         await page.goto("/find")
 
         await page.getByLabel("Email used to book").fill("nobody@example.test")
@@ -113,14 +113,14 @@ test.describe("patient booking flow", () => {
     })
 
     test("says so when a booking ID does not exist", async ({ page }) => {
-        await installFakeApi(page)
+        await installFakeApi(page, { signedInAs: "patient" })
         await page.goto("/booking/bk_missing")
 
         await expect(page.getByText("Booking not found")).toBeVisible()
     })
 
     test("never scrolls sideways", async ({ page }) => {
-        await installFakeApi(page)
+        await installFakeApi(page, { signedInAs: "patient" })
         await page.goto("/")
         await expect(page.getByRole("heading", { name: "Book an appointment", level: 1 })).toBeVisible()
 

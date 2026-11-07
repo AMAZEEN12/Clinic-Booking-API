@@ -32,6 +32,11 @@ class UnauthorizedError(AppError):
     default_message = "missing or invalid API key"
 
 
+class ForbiddenError(AppError):
+    status_code = 403
+    default_message = "forbidden"
+
+
 class NotFoundError(AppError):
     status_code = 404
     default_message = "not found"

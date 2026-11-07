@@ -10,6 +10,25 @@ export type Slot = {
     available: boolean
 }
 
+export type Role = "staff" | "patient"
+
+/** The signed-in person (kept by services/session.ts). */
+export type Session = {
+    token: string
+    role: Role
+    name: string
+    /** ISO 8601 UTC: when the login ends. */
+    expiresAt: string
+}
+
+/** POST /auth/login answer (clinic-booking-api/app/schemas.py, LoginResponse). */
+export type LoginResponse = {
+    token: string
+    role: Role
+    name: string
+    expires_at: string
+}
+
 export type BookingStatus = "confirmed" | "cancelled"
 
 export type Booking = {

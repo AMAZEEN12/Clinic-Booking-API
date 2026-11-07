@@ -2,7 +2,7 @@
 
 The runbook for taking this change from its current state to production and into maintenance. Any human or agent can follow it. Generated from the artifacts below; update it whenever one of them changes. Progress against these steps, plus all decisions and conventions, is tracked in `WORKLOG.md` in this folder. Log each completed step there.
 
-Change slug: `clinic-booking-api` · Last updated: 2026-11-05 · Current stage: Deploy (all code written; payment and dashboard extras built; first production deploy and live checks next)
+Change slug: `clinic-booking-api` · Last updated: 2026-11-05 · Current stage: Verify live (all code written; extras built; API on Render and page on Vercel; final live checks, Loom and submission next)
 
 ## Artifact chain
 | Stage | Artifact | Status | Owner | Approved by / date |

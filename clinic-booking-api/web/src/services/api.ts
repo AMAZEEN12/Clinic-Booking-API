@@ -1,12 +1,25 @@
 // The only place that talks to the clinic booking API (see clinic-booking-api/app/routers).
 // Every failure becomes an ApiError with a `kind`, so screens never look at raw status codes.
 
-import type { Booking, BookingList, BookingPage, CreateBookingArgs, DashboardAppointment, DashboardSummary, Payment, Slot } from "@/models"
+import type {
+    Booking,
+    BookingList,
+    BookingPage,
+    CreateBookingArgs,
+    DashboardAppointment,
+    DashboardSummary,
+    LoginResponse,
+    Payment,
+    Session,
+    Slot,
+} from "@/models"
+import { clearSession, getSession, setSession } from "@/services/session"
 import { env } from "@/utils/env"
 
 export type ApiErrorKind =
     | "network" // no answer: offline, timed out, or blocked
-    | "unauthorized" // 401: the API key is missing or wrong
+    | "unauthorized" // 401: the API key is missing or wrong, or the login is missing, wrong or ended
+    | "forbidden" // 403: signed in, but not as clinic staff
     | "invalid" // 400
     | "not_found" // 404
     | "conflict" // 409: for example the slot was just taken
@@ -37,6 +50,8 @@ export function kindForStatus(status: number): ApiErrorKind {
             return "invalid"
         case 401:
             return "unauthorized"
+        case 403:
+            return "forbidden"
         case 404:
             return "not_found"
         case 409:
@@ -52,6 +67,8 @@ type RequestOptions = {
     method?: "GET" | "POST" | "DELETE"
     body?: unknown
     idempotencyKey?: string
+    /** The login form itself must not end a session when it fails. */
+    isLogin?: boolean
 }
 
 async function readJson(response: Response): Promise<unknown> {
@@ -71,6 +88,9 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     const headers: Record<string, string> = { Accept: "application/json", "X-API-Key": env.apiKey }
     if (options.body !== undefined) headers["Content-Type"] = "application/json"
     if (options.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey
+    // The login token is what the API checks for staff-only screens such as the dashboard.
+    const session = getSession()
+    if (session) headers["Authorization"] = `Bearer ${session.token}`
 
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
@@ -92,6 +112,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     const payload = await readJson(response)
 
     if (!response.ok) {
+        // The login has ended or was refused: forget it, so the screens send the person to sign in.
+        if (response.status === 401 && session && !options.isLogin) clearSession()
         const message =
             payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
                 ? payload.error
@@ -100,6 +122,23 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     }
 
     return payload as T
+}
+
+/** Signs in and remembers the login. Throws an ApiError (401 for a wrong email or password). */
+export async function login(email: string, password: string): Promise<Session> {
+    const result = await request<LoginResponse>("/auth/login", {
+        method: "POST",
+        body: { email, password },
+        isLogin: true,
+    })
+    const session: Session = {
+        token: result.token,
+        role: result.role,
+        name: result.name,
+        expiresAt: result.expires_at,
+    }
+    setSession(session)
+    return session
 }
 
 export async function getSlots(): Promise<Slot[]> {

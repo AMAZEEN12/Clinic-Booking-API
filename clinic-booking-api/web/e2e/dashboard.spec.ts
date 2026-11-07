@@ -3,7 +3,7 @@ import { installFakeApi } from "./fakeApi"
 
 test.describe("clinic dashboard", () => {
     test("shows the day's counts and masked patient names", async ({ page }) => {
-        const api = await installFakeApi(page)
+        const api = await installFakeApi(page, { signedInAs: "staff" })
         api.seedBooking({ slotId: "slot_1", name: "Chidi Okafor", email: "chidi@example.test" })
         api.seedBooking({ slotId: "slot_3", name: "Ngozi Eze", email: "ngozi@example.test", status: "cancelled" })
         await page.goto("/dashboard")
@@ -17,7 +17,7 @@ test.describe("clinic dashboard", () => {
     })
 
     test("never shows an email or a full name (N10)", async ({ page }) => {
-        const api = await installFakeApi(page)
+        const api = await installFakeApi(page, { signedInAs: "staff" })
         api.seedBooking({ slotId: "slot_1", name: "Chidi Okafor", email: "chidi@example.test" })
         await page.goto("/dashboard")
         await expect(page.getByText("Chidi O.")).toBeVisible()
@@ -27,7 +27,7 @@ test.describe("clinic dashboard", () => {
     })
 
     test("shows an empty state for a day with no appointments", async ({ page }) => {
-        await installFakeApi(page)
+        await installFakeApi(page, { signedInAs: "staff" })
         await page.goto("/dashboard")
 
         await page.getByLabel("Day").fill("2000-01-01")
@@ -36,8 +36,8 @@ test.describe("clinic dashboard", () => {
     })
 
     test("is reachable from the menu", async ({ page }) => {
-        await installFakeApi(page)
-        await page.goto("/")
+        await installFakeApi(page, { signedInAs: "staff" })
+        await page.goto("/find") // a patient screen: staff are sent to the dashboard
 
         await page.getByRole("link", { name: "Dashboard" }).click()
 
@@ -46,7 +46,7 @@ test.describe("clinic dashboard", () => {
     })
 
     test("never scrolls sideways", async ({ page }) => {
-        const api = await installFakeApi(page)
+        const api = await installFakeApi(page, { signedInAs: "staff" })
         api.seedBooking({ slotId: "slot_1", name: "Chidi Okafor", email: "chidi@example.test" })
         await page.goto("/dashboard")
         await expect(page.getByText("Chidi O.")).toBeVisible()

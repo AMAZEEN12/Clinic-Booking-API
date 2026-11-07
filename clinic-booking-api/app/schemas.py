@@ -134,3 +134,24 @@ class BookingPage(BaseModel):
 
     bookings: list[Booking]
     next_cursor: str | None
+
+
+class LoginRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    email: NonEmptyStr
+    password: Annotated[str, StringConstraints(min_length=1, max_length=200)]
+
+
+class LoginResponse(BaseModel):
+    """A signed token and who it is for. `expires_at` is UTC."""
+
+    token: str
+    role: Literal["staff", "patient"]
+    name: str
+    expires_at: datetime
+
+    @field_validator("expires_at")
+    @classmethod
+    def _expires_utc(cls, value: datetime) -> datetime:
+        return _to_utc(value)

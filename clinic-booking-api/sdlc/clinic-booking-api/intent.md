@@ -40,9 +40,9 @@ A patient opens the web page, sees which slots are free, books one with name and
 - Submission complete within one week, with a Loom of 5 minutes or less.
 
 ## Open questions
-- [ ] Spec gaps not in the pasted schema: GET /bookings query parameters and paging shape, how idempotent retries are signalled, rate-limit response and thresholds, /reset request body (owner: user, can paste the full spec from koyaacademy.com/assessment-api) · UNRESOLVED
-- [ ] Language, framework, database and host (owner: user, decided at Design) · UNRESOLVED
-- [ ] Which extra to deliver first (owner: user) · UNRESOLVED
+- [x] Spec gaps not in the pasted schema: GET /bookings query parameters and paging shape, how idempotent retries are signalled, rate-limit response and thresholds, /reset request body · RESOLVED by assumption (D12-D15). The chosen shapes are documented in the README and covered by tests; they are not yet checked against the full Koya spec.
+- [x] Language, framework, database and host · RESOLVED: Python and FastAPI (switched from Java, D38, D39), PostgreSQL on Neon, API on Render, web page on Vercel.
+- [x] Which extra to deliver first · RESOLVED: simulated payment first (D49), then the clinic dashboard (D50).
 
 ## Measurement
 - Leading: time from first conversation to accepted intent.md (git timestamps).

@@ -98,3 +98,11 @@ async def enforce_booking_rate_limit(request: Request) -> None:
     wait = request.app.state.rate_limiter.check(client)
     if wait:
         raise TooManyRequestsError("too many requests", headers={"Retry-After": str(wait)})
+
+
+async def enforce_login_rate_limit(request: Request) -> None:
+    """Dependency for POST /auth/login: slows down password guessing, per client IP address."""
+    client = hashlib.sha256(client_ip(request).encode()).hexdigest()
+    wait = request.app.state.login_limiter.check(client)
+    if wait:
+        raise TooManyRequestsError("too many requests", headers={"Retry-After": str(wait)})

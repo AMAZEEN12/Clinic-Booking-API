@@ -5,6 +5,14 @@ import type { Page, Route } from "@playwright/test"
 export const API_KEY = "e2e-test-key"
 const API_PREFIX = "/api-mock"
 
+export type Role = "staff" | "patient"
+
+/** The two demo accounts of the fake API. The tokens are stand-ins for the real signed ones. */
+export const ACCOUNTS: Record<Role, { email: string; password: string; name: string; token: string }> = {
+    staff: { email: "staff@beeclinic.test", password: "staff-pass-e2e", name: "Front Desk", token: "tok_staff" },
+    patient: { email: "patient@beeclinic.test", password: "patient-pass-e2e", name: "Demo Patient", token: "tok_patient" },
+}
+
 type FakeSlot = { id: string; provider: string; start: string; end: string }
 type FakeBooking = {
     id: string
@@ -21,6 +29,8 @@ export type FakeApiOptions = {
     takenSlotIds?: string[]
     /** Every POST /bookings answers 409, as if someone else got the time first. */
     conflictOnBook?: boolean
+    /** Starts the page already signed in as this role (once per browser tab). */
+    signedInAs?: Role
 }
 
 export type SeedArgs = { slotId: string; name: string; email: string; status?: "confirmed" | "cancelled" }
@@ -43,6 +53,24 @@ function reply(route: Route, status: number, body: unknown) {
 
 /** Three slots today (UTC): 09:00, 10:00 and 11:00 UTC, shown as 10:00, 11:00 and 12:00 Lagos time. */
 export async function installFakeApi(page: Page, options: FakeApiOptions = {}): Promise<FakeApi> {
+    const signedInAs = options.signedInAs
+    if (signedInAs) {
+        const account = ACCOUNTS[signedInAs]
+        const session = {
+            token: account.token,
+            role: signedInAs,
+            name: account.name,
+            expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        }
+        // Seeded once per tab, so signing out and reloading does not bring the login back.
+        await page.addInitScript((value: string) => {
+            if (!sessionStorage.getItem("e2e.seeded")) {
+                sessionStorage.setItem("e2e.seeded", "1")
+                sessionStorage.setItem("clinic.session", value)
+            }
+        }, JSON.stringify(session))
+    }
+
     const midnight = new Date()
     midnight.setUTCHours(0, 0, 0, 0)
     const at = (hour: number, minutes = 0) => new Date(midnight.getTime() + (hour * 60 + minutes) * 60_000).toISOString()
@@ -88,6 +116,31 @@ export async function installFakeApi(page: Page, options: FakeApiOptions = {}): 
         const url = new URL(request.url())
         const path = url.pathname.slice(API_PREFIX.length)
         const method = request.method()
+
+        if (method === "POST" && path === "/auth/login") {
+            const body = request.postDataJSON() as { email: string; password: string }
+            const account = Object.values(ACCOUNTS).find(
+                (a) => a.email === body.email.trim().toLowerCase() && a.password === body.password,
+            )
+            if (!account) return reply(route, 401, { error: "wrong email or password" })
+            const role: Role = account === ACCOUNTS.staff ? "staff" : "patient"
+            return reply(route, 200, {
+                token: account.token,
+                role,
+                name: account.name,
+                expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+            })
+        }
+
+        // Like the real API: the dashboard needs a staff login (401 without one, 403 for a patient).
+        if (path.startsWith("/dashboard/")) {
+            const auth = request.headers()["authorization"] ?? ""
+            if (!auth.startsWith("Bearer ")) return reply(route, 401, { error: "sign in to continue" })
+            if (auth !== `Bearer ${ACCOUNTS.staff.token}`) {
+                const known = auth === `Bearer ${ACCOUNTS.patient.token}`
+                return known ? reply(route, 403, { error: "staff only" }) : reply(route, 401, { error: "sign in to continue" })
+            }
+        }
 
         if (method === "GET" && path === "/slots") {
             return reply(

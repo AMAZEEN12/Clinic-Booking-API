@@ -95,7 +95,7 @@ pnpm dev
 | `DATABASE_URL` | API | PostgreSQL connection URL (required) |
 | `API_KEY` | API | The key clients send in `X-API-Key` (required) |
 | `CORS_ORIGINS` | API | Web page address(es) allowed to call the API, comma-separated |
-| `RATE_LIMIT_PER_MINUTE` | API | Booking attempts a minute per email (default 5) |
+| `RATE_LIMIT_PER_MINUTE` | API | Booking attempts a minute per client IP address (default 5) |
 | `TEST_DATABASE_URL` | tests | A separate test database. Tests refuse to run against `DATABASE_URL` |
 | `VITE_API_BASE_URL` | web | The API address, set at build time |
 | `VITE_API_KEY` | web | The same key, set at build time |
@@ -128,7 +128,7 @@ The full list is in `clinic-booking-api/sdlc/clinic-booking-api/WORKLOG.md`. The
 ## Known limits
 
 - Free hosting: cold starts after idle time, and a small database.
-- The rate limit is per email and kept in memory, so it resets when the service restarts and only works with a single worker.
+- The rate limit is per client IP address and kept in memory, so it resets when the service restarts and only works with a single worker. Several patients behind one shared connection (for example a clinic's wifi) share one allowance.
 - A "day" on the dashboard is a UTC day, so slots starting between 00:00 and 01:00 Lagos time fall on the previous day.
 - Payments are simulated: no money moves, and there is no refund.
 
