@@ -88,16 +88,15 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-async def enforce_booking_rate_limit(request: Request) -> None:
-    """Dependency for POST /bookings: refuse the attempt after the limit, before validation.
+def booking_attempt_wait(request: Request) -> int:
+    """Count one booking attempt from this client. 0 when allowed, else the seconds to wait.
 
-    It runs after the API key check (a wrong key is a 401 and is never counted). Every attempt
-    from an IP address counts, whatever is in the body, because the limit no longer depends on it.
+    Called by the key-check middleware for POST /bookings, so it runs before the body is read:
+    every attempt from an IP address counts, whatever is in the body (a body that is not JSON
+    included). A wrong API key is refused first and is never counted.
     """
     client = hashlib.sha256(client_ip(request).encode()).hexdigest()
-    wait = request.app.state.rate_limiter.check(client)
-    if wait:
-        raise TooManyRequestsError("too many requests", headers={"Retry-After": str(wait)})
+    return request.app.state.rate_limiter.check(client)
 
 
 async def enforce_login_rate_limit(request: Request) -> None:

@@ -2,11 +2,10 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Header, Query
 
 from app.config import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.errors import BadRequestError
-from app.ratelimit import enforce_booking_rate_limit
 from app.schemas import Booking, BookingPage, NewBooking
 from app.services import bookings as booking_service
 
@@ -23,12 +22,8 @@ def _clean_key(raw: str | None) -> str | None:
     return key or None
 
 
-@router.post(
-    "/bookings",
-    status_code=201,
-    response_model=Booking,
-    dependencies=[Depends(enforce_booking_rate_limit)],
-)
+# The booking rate limit (R11) is counted in app/security.py, before the body is read.
+@router.post("/bookings", status_code=201, response_model=Booking)
 def create_booking(
     new_booking: NewBooking,
     idempotency_key: Annotated[str | None, Header()] = None,
