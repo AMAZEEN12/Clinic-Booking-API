@@ -16,7 +16,7 @@ import { ApiError, createBooking, getSlots } from "@/services/api"
 import { newIdempotencyKey } from "@/utils/id"
 import { describeError } from "@/utils/messages"
 import { routes } from "@/utils/routes"
-import { groupByDay } from "@/utils/slots"
+import { groupByDay, upcomingSlots } from "@/utils/slots"
 import { validateDetails, type DetailsErrors } from "@/utils/validation"
 
 export function BookPage() {
@@ -93,7 +93,8 @@ export function BookPage() {
         )
     }
 
-    const allSlots = slots.state.data
+    // Times that have already passed are never shown: they cannot be booked.
+    const allSlots = upcomingSlots(slots.state.data)
     if (allSlots.length === 0) {
         return (
             <Panel>
